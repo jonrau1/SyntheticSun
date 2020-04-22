@@ -18,7 +18,7 @@ With those outcomes in mind, there are three goals SecurityDataSomething has:
 ## Solution Architecture
 ![SolArch](https://github.com/jonrau1/SecurityDataSomething/blob/master/sds.jpg)
 
-The figure above represents the solution in its entirety and a high-level for data flows without taking into consideration network constructs, encryption and permissions. Each source of telemetry will be broken out in their own data flow / architecture diagram.
+The figure above represents the solution in its entirety and a high-level for data flows without taking into consideration network constructs, encryption and permissions. Each source of telemetry will be broken out in their own data flow / architecture diagram. The gold-background area represents raw ingestion of telemetry where the green-background area represents areas of value derivation via correlation, visualization and response.
 
 This solution makes use of the following AWS native telemetry:
 - AWS WAF Requests Logs
@@ -35,4 +35,4 @@ This solution also uses these non-AWS log sources for host-level and technology 
 - NGINX: Access logs
 - Apache: Access logs
 
-A pre-trained IP Insights Sagemaker model will be used for user-agent/username & IPv4 address pair anamoly detection with dynamic blacklisting sent to AWS WAF. A MISP service will be used on Fargate to send specific threat campaign related IOC information as limited time-to-live items in DynamoDB. IpInfo.io Python clients will be used to provide geo-location enrichment to IP information from various AWS logs. Finally, after enrichment and normalization all telemetry is sent to Elasticsearch Service to be visualized, queried and alerted from using Kibana and Monitors.
+A pre-trained IP Insights Sagemaker model will be used for user-agent/username & IPv4 address pair anamoly detection with dynamic blacklisting sent to AWS WAF. A MISP service will be used on Fargate to send specific threat campaign related IOC information as limited time-to-live items in DynamoDB. IpInfo.io Python clients will be used to provide geo-location enrichment to IP information from various AWS logs. Finally, after enrichment and normalization all telemetry is sent to Elasticsearch Service to be visualized, queried and alerted from using Kibana and Monitors (plus SNS & Lambda).
