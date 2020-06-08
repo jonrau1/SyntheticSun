@@ -3,14 +3,247 @@ Description: Creates the threat intel automation services needed for SyntheticSu
 Parameters:
   ArtifactsBucketName:
     Type: String
-    Description: Name of the S3 bucket where SyntheticSun artifacts were uploaded during Stage 1
+    Description: Name of the S3 bucket where SyntheticSun artifacts were uploaded in Stage 1
   MISPInstanceId:
     Type: String
-    Description: The Instance ID of the MISP instance that was created during Stage 1
+    Description: The Instance ID of the MISP instance created in Stage 1
   MISPAutomationKeyParameter:
     Type: String
     Description: The name of the SSM Parameter that contains the MISP automation key
+    Default: MISP-Automation-Key
+  ThreatIntelWAFIpSetName:
+    Type: String
+    Description: The name of the threat intel WAF IP Set created in Stage 1
+    Default: LOL-REPLACEME
+  ThreatIntelWAFIpSetId:
+    Type: String
+    Description: The logical ID of the threat intel WAF IP Set created in Stage 1
+  IpInsightsIntelWAFIpSetName:
+    Type: String
+    Description: The name of the IP Insights WAF IP Set created in Stage 1
+    Default: LOL-REPLACEME
+  IpInsightsIntelWAFIpSetId:
+    Type: String
+    Description: The logical ID of the IP Insights WAF IP Set created in Stage 1
+  GuardDutyDetectorId:
+    Type: String
+    Description: The Detector ID for GuardDuty in the region you are deploying SyntheticSun
 Resources:
+  CTIThreatIntelSet:
+    Type: AWS::GuardDuty::ThreatIntelSet
+    Properties: 
+      Activate: true
+      DetectorId: !Ref GuardDutyDetectorId
+      Format: TXT
+      Location: !Sub 'https://s3-${AWS::Region}.amazonaws.com/${ArtifactsBucketName}/cti-threatlist.txt'
+      Name: cti-threatlist
+  IpInsightsThreatIntelSet:
+    Type: AWS::GuardDuty::ThreatIntelSet
+    Properties: 
+      Activate: true
+      DetectorId: !Ref GuardDutyDetectorId
+      Format: TXT
+      Location: !Sub 'https://s3-${AWS::Region}.amazonaws.com/${ArtifactsBucketName}/anomaly-threatlist.txt'
+      Name: ipinsights-threatlist
+  SyntheticSunCICDCodeCommit:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryDescription: Contains SyntheticSun Stage 2 build automation artifacts - Managed by CloudFormation
+      RepositoryName: syntheticsun-cti-automations
+      Code:
+        S3:
+          Bucket: !Ref ArtifactsBucketName
+          Key: stage2-automation-package.zip
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SyntheticSun-CodebuildRole
+      Policies:
+      - PolicyName: SyntheticSun-CodeBuildServiceRolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - codecommit:GitPull
+            Resource: !GetAtt SyntheticSunCICDCodeCommit.Arn
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - s3:GetObject
+            - s3:GetObjectVersion
+            - s3:PutObject
+            - s3:GetBucketAcl
+            - s3:GetBucketLocation
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - guardduty:GetThreatIntelSet
+            - guardduty:UpdateThreatIntelSet
+            - wafv2:GetIPSet
+            - wafv2:UpdateIPSet
+            - kms:Decrypt
+            - ssm:GetParameter
+            - ssm:GetParameters
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - dynamodb:PutItem
+            - dynamodb:Scan
+            - dynamodb:Query
+            Resource: !GetAtt IPIoCDDB.Arn
+          - Effect: Allow
+            Action:
+            - dynamodb:PutItem
+            - dynamodb:Scan
+            - dynamodb:Query
+            Resource: !GetAtt DomainIoCDDB.Arn
+          - Effect: Allow
+            Action:
+            - dynamodb:PutItem
+            - dynamodb:Scan
+            - dynamodb:Query
+            Resource: !GetAtt IPInsightsDDB.Arn
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: codebuild.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  MISPAutomationsCodeBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Description: Performs tag-based loading of latest cyber threat intelligence IOCs from MISP server into DynamoDB tables for SyntheticSun - Managed by CloudFormation
+      Environment:
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/standard:4.0
+        PrivilegedMode: True
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+        - Name: MISP_AUTOMATION_KEY_PARAMETER
+          Type: PLAINTEXT
+          Value: !Ref MISPAutomationKeyParameter
+        - Name: MISP_EC2_ID
+          Type: PLAINTEXT
+          Value: !Ref MISPInstanceId
+        - Name: MISP_IP_IOC_DDB_TABLE
+          Type: PLAINTEXT
+          Value: !Ref IPIoCDDB
+        - Name: MISP_DOMAIN_IOC_DDB_TABLE
+          Type: PLAINTEXT
+          Value: !Ref DomainIoCDDB
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+      Name: SyntheticSun-MISP-Automations
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Source:
+        BuildSpec: misp-automations/buildspec.yaml
+        Type: CODECOMMIT
+  LIMOAutomationsCodeBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Description: Performs collection-based loading of latest cyber threat intelligence IOCs from Anomali's LIMO TAXII/STIX feed into DynamoDB tables for SyntheticSun - Managed by CloudFormation
+      Environment:
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/standard:4.0
+        PrivilegedMode: True
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+        - Name: MISP_IP_IOC_DDB_TABLE
+          Type: PLAINTEXT
+          Value: !Ref IPIoCDDB
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+      Name: SyntheticSun-LIMO-Automations
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Source:
+        BuildSpec: limo-automations/buildspec.yaml
+        Type: CODECOMMIT
+  WAFAutomationsCodeBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Description: Performs weekly updates of WAF IP Sets based on latest cyber threat intelligence and IP Insights anomalies - Managed by CloudFormation
+      Environment:
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/standard:4.0
+        PrivilegedMode: True
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+        - Name: MISP_IP_IOC_DDB_TABLE
+          Type: PLAINTEXT
+          Value: !Ref IPIoCDDB
+        - Name: WAF_CTI_IP_SET_ID
+          Type: PLAINTEXT
+          Value: !Ref ThreatIntelWAFIpSetId
+        - Name: WAF_CTI_IP_SET_NAME
+          Type: PLAINTEXT
+          Value: !Ref ThreatIntelWAFIpSetName
+        - Name: IP_INSIGHTS_DDB_TABLE
+          Type: PLAINTEXT
+          Value: !Ref IPInsightsDDB
+        - Name: IP_INSIGHTS_IP_SET_ID
+          Type: PLAINTEXT
+          Value: !Ref IpInsightsIntelWAFIpSetId
+        - Name: IP_INSIGHTS_IP_SET_NAME
+          Type: PLAINTEXT
+          Value: !Ref IpInsightsIntelWAFIpSetName
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+      Name: SyntheticSun-WAF-Automations
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Source:
+        BuildSpec: waf-cti-automations/buildspec.yaml
+        Type: CODECOMMIT
+  GuardDutyAutomationsCodeBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Description: Performs weekly updates of GuardDuty threat intel sets based on latest cyber threat intelligence and IP Insights anomalies - Managed by CloudFormation
+      Environment:
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/standard:4.0
+        PrivilegedMode: True
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+        - Name: MISP_IP_IOC_DDB_TABLE
+          Type: PLAINTEXT
+          Value: !Ref IPIoCDDB
+        - Name: IP_INSIGHTS_DDB_TABLE
+          Type: PLAINTEXT
+          Value: !Ref CTIThreatIntelSet
+        - Name: GUARDDUTY_DETECTOR_ID
+          Type: PLAINTEXT
+          Value: !Ref GuardDutyDetectorId
+        - Name: CTI_THREAT_INTEL_SET
+          Type: PLAINTEXT
+          Value: !Ref ThreatIntelWAFIpSetId
+        - Name: ANOMALY_THREAT_INTEL_SET
+          Type: PLAINTEXT
+          Value: !Ref IpInsightsThreatIntelSet
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+      Name: SyntheticSun-GuardDuty-Automations
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Source:
+        BuildSpec: guardduty-cti-automations/buildspec.yaml
+        Type: CODECOMMIT
   IPIoCDDB: 
     Type: AWS::DynamoDB::Table
     Properties: 
@@ -23,6 +256,9 @@ Resources:
           AttributeName: IPV4_IOC
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
       TableName: IP-IOC-Threat-Intel
   DomainIoCDDB:
     Type: AWS::DynamoDB::Table
@@ -36,6 +272,9 @@ Resources:
           AttributeName: DOMAIN_IOC
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
       TableName: Domain-IOC-Threat-Intel
   IPInsightsDDB: 
     Type: AWS::DynamoDB::Table

@@ -55,13 +55,18 @@ exit
 exit
 ```
 
-9. Execute the following command to run the `AmazonCloudWatch-ManageAgent` document to configure the Agent using the Parameter spec you deployed in Step 4 and start it.
-```
+9. Execute the following command to run the `AmazonCloudWatch-ManageAgent` document to configure the Agent using the Parameter spec you deployed in Step 4 and start it. **Note** replace the Instance ID and the region as needed.
+```bash
 aws ssm send-command \
     --document-name "AmazonCloudWatch-ManageAgent" \
-    --parameters Action="configure",Mode="ec2",Optional Configuration Source="ssm",Optional Configuration Location="AmazonCloudWatch-linux",Optional Restart=yes \
-    --targets "Key=instanceids,Values=<MISP-instance-id-here>" \
-    --comment "SyntheticSun readme Stage 1"
+    --document-version "4" \
+    --targets '[{"Key":"InstanceIds","Values":["<MISP_INSTANCE_ID_HERE"]}]' \
+    --parameters '{"action":["configure"],"mode":["ec2"],"optionalConfigurationSource":["ssm"],"optionalConfigurationLocation":["AmazonCloudWatch-linux"],"optionalRestart":["yes"]}' \
+    --timeout-seconds 600 \
+    --max-concurrency "50" \
+    --max-errors "0" \
+    --cloud-watch-output-config '{"CloudWatchOutputEnabled":true}' \
+    --region <AWS_REGION_HERE>
 ```
 
 This is the end of Stage 1 for SyntheticSun. Before moving onto Stage 2 confirm that Suricata logs are being published to CloudWatch by navigating to the CloudWatch Logs console and looking at either `Suricata-DNS-Logs` or `Suricata-Not-DNS-Logs` log groups. If logs are not being published verify that the CloudWatch Agent is running by using the `AmazonCloudWatch-ManageAgent` document in `status` mode and looking for Suricata publishing logs by navigating to `/var/logs/suricata` and verifying that both `eve-dns.json` and `eve-nsm.json` are created and streaming by using `tail -f`.
