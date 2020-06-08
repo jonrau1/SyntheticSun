@@ -18,11 +18,11 @@ In this Stage we will deploy the baseline services such as WAFv2, MISP and Elast
 `cd artifacts && aws s3 sync . s3://<artifact-bucket-name-here>`
 
 3. Execute the provided script to create a Lambda layer for the `requests-aws4auth` Python library from the ZIP file.
-`cd - && cd lambda-layer && python3 layer.py`
+`cd - && cd lambda-layer && sh layer.sh`
 
-4. Execute a final helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. There are 6 values that must be provided in the order they are given: `cd - && python3 gewalthaufen.py <values 1-6>`
+4. Execute a final helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. The below 6 values must be provided in the order they are given: `cd - && python3 gewalthaufen.py <values 1-6>`
     1) AWS region, e.g. us-east-1
-    2) VPC ID you selected as the parameter value when deploying cloudformation. Must be in the format for `vpc-123456`
+    2) VPC ID you selected as the parameter value when deploying cloudformation. Must be in the format of `vpc-123456`
     3) Trusted CIDR range for IP-based conditional access into Kibana, e.g. 192.168.1.2/32
     4) WAF ARN from the CloudFormation template
     5) Firehose ARN from the CloudFormation template
