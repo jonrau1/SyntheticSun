@@ -15,4 +15,4 @@ In this Stage we will configure the MISP platform to bring in cyber threat intel
 
 ### Deployment instructions
 
-**[Phase 3 starts here](https://github.com/jonrau1/SyntheticSun/readme-stage3)**
+**[Phase 3 starts here](https://github.com/jonrau1/SyntheticSun/tree/master/readme-stage3)**

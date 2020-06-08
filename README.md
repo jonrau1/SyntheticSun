@@ -39,7 +39,7 @@ SyntheticSun, by virtue of being something you found on GitHub, is a proof-of-co
 - CloudTrail logging enabled in your account
 - One VPC with at least 1 private subnet (route to NATGW), 1 public subnet (route to IGW) and VPC Flow Logs enabled and published to CloudWatch Logs
 
-**[Phase 1 starts here](https://github.com/jonrau1/SyntheticSun/readme-stage1)**
+**[Phase 1 starts here](https://github.com/jonrau1/SyntheticSun/tree/master/readme-stage1)**
 
 
 ## FAQ
