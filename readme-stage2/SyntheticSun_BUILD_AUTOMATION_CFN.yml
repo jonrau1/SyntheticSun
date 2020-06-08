@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates the threat intel automation services needed for SyntheticSun such as DynamoDB and CodeBuild assets. Deploy this second.
+Parameters:
+  ArtifactsBucketName:
+    Type: String
+    Description: Name of the S3 bucket where SyntheticSun artifacts were uploaded during Stage 1
+  MISPInstanceId:
+    Type: String
+    Description: The Instance ID of the MISP instance that was created during Stage 1
+  MISPAutomationKeyParameter:
+    Type: String
+    Description: The name of the SSM Parameter that contains the MISP automation key
+Resources:
+  IPIoCDDB: 
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - 
+          AttributeName: IPV4_IOC
+          AttributeType: S
+      KeySchema: 
+        - 
+          AttributeName: IPV4_IOC
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TableName: IP-IOC-Threat-Intel
+  DomainIoCDDB:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - 
+          AttributeName: DOMAIN_IOC
+          AttributeType: S
+      KeySchema: 
+        - 
+          AttributeName: DOMAIN_IOC
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TableName: Domain-IOC-Threat-Intel
+  IPInsightsDDB: 
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - 
+          AttributeName: ANOMALY_IPV4
+          AttributeType: S
+      KeySchema: 
+        - 
+          AttributeName: ANOMALY_IPV4
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TableName: IP-Insights-Anomalies
