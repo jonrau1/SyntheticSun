@@ -1,11 +1,11 @@
 # SyntheticSun
 SyntheticSun is a proof of concept (POC) defense-in-depth security automation and monitoring framework which utilizes threat intelligence, machine learning, and serverless technologies to continuously prevent, detect and respond to new and emerging threats.
 
-*"You sleep in fragmented glass"*</br>
-*With reflections of you,"*</br>
-*But are you feeling alive?"*</br>
-*Yeah let me ask you,"*</br>
-*Are you feeling alive?"*</br>
+*You sleep in fragmented glass*</br>
+*With reflections of you,*</br>
+*But are you feeling alive?*</br>
+*Yeah let me ask you,*</br>
+*Are you feeling alive?*</br>
 <sub>- **Norma Jean, 2016**</sub>
 
 ## Synopsis
@@ -50,7 +50,7 @@ SyntheticSun is an easy way to start using cyber threat intelligence and machine
 Firstly, if you are making use or GuardDuty and/or AWS WAF it may make sense to evaluate this solution, but it is also a requirement. Obvious personas who can take advantage are product teams responsible for securing their full stack and lack the capital or expertise to model, train and deploy machine learning algorithms or operationalize cyber threat intelligence feeds in a meaningful way. Those aforementioned personas are likely security engineering, SecOps / SOC analysts & engineers or a DevSecOps engineer, but that list is not exhaustive, and they do not need to be product / application-aligned as central teams can use this as well. Another usage is those same personas (SecOps, security engineering) that work for a centralized team and want to create a dynamic block list for firewalls and intrusion prevention systems, the CodeBuild projects can be repurposed to drop CSV or flat files to almost any location (e.g. Palo Alto firewalls, Squid forward proxy URL filters, etc.)
 
 #### 3. What are the gaps in this solution?
-
+Lack of full coverage across all main log sources - namely S3 Access Logs and CloudFront Access Logs which are integral to the way a lot of folks deliver services (especially for SPAs on S3 buckets). The anomaly detection does not extend past WAF or CloudTrail due to my obsession with IP Insights and complete lack of any data science training (seriously, I don't even know how to use pandas or numpy). There is not any in-depth analysis of raw threat intelligence IoCs other than attempting to match it in the logs.
 
 #### 4. Outside of the Masters for the AWS Security Services, what considerations are there for an Organizational deployment?
 The easiest way to deploy this solution for an organization is to deploy it as suggested in FAQ #3 where all of your centralized security and management services are located. For the lower-level telemetry such as VPC Flow Logs and WAF Logs, you should split those elements out of the main CloudFormation template into their own and share them across your organization in AWS Service Catalog or in another centralized area. You will need to evaluate your shard consumption and index rotation of Elasticsearch Service, as well as the permissions, if you will be having cross-account Kinesis Data Firehose delivery streams publishing into a centralized location.
