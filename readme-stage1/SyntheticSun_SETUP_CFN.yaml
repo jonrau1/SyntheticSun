@@ -1,0 +1,325 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates the baseline resources needed for SyntheticSun such as WAF, Kinesis, ES and MISP assets. Deploy this first.
+Parameters:
+  ApplicationLoadBalancerArn:
+    Type: String
+    Description: The ARN of the Application Load Balancer to attach the SyntheticSun WAF to
+  MISPAmiId:
+    Type: AWS::EC2::Image::Id
+    Description: The AMI ID for MISP-Cloud in us-east-1. Change to one applicable for your Region, availabe at github/misp-cloud
+    Default: ami-0e0e49a00c1176d7d
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Public Subnet for the MISP instance. This subnet must have a route to an IGW to be considered public.
+  SGVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID to create the new security group in. Must be the same VPC that has your subnet.
+  MISPInstanceTypeParameter: 
+    Type: String
+    Default: r5.xlarge
+    Description: Instance type for the MISP instance. R or M series are preferred if you will be using multiple feeds
+    AllowedValues: 
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - m4.large
+      - m4.xlarge
+      - m5.large
+      - r4.large
+      - r4.xlarge
+      - m5.xlarge
+      - r5.large
+      - r5.xlarge
+  ESDataNodeInstanceType: 
+    Type: String
+    Default: r5.large.elasticsearch
+    Description: Instance type for Elasticsearch data nodes
+    AllowedValues:
+      - t3.xlarge.elasticsearch
+      - m4.xlarge.elasticsearch
+      - m5.large.elasticsearch
+      - r4.large.elasticsearch
+      - r4.xlarge.elasticsearch
+      - m5.xlarge.elasticsearch
+      - r5.large.elasticsearch
+      - r5.xlarge.elasticsearch
+  ESMasterNodeInstanceType: 
+    Type: String
+    Default: m5.large.elasticsearch
+    Description: Instance type for Elasticsearch master nodes
+    AllowedValues: 
+      - t3.xlarge.elasticsearch
+      - m4.xlarge.elasticsearch
+      - m5.large.elasticsearch
+      - r4.large.elasticsearch
+      - r4.xlarge.elasticsearch
+      - m5.xlarge.elasticsearch
+      - r5.large.elasticsearch
+      - r5.xlarge.elasticsearch
+Resources:
+  SyntheticSunES:
+    Type: AWS::Elasticsearch::Domain
+    Properties:
+      DomainName: syntheticsun-es
+      ElasticsearchClusterConfig:
+        DedicatedMasterEnabled: true
+        InstanceCount: 2
+        InstanceType: !Ref ESDataNodeInstanceType
+        DedicatedMasterType: !Ref ESMasterNodeInstanceType
+        DedicatedMasterCount: 3
+      ElasticsearchVersion: 7.4
+      EncryptionAtRestOptions:
+        Enabled: true
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 25
+        VolumeType: gp2
+  ThreatIntelWAFv2IPBlacklist:
+    Type: AWS::WAFv2::IPSet
+    Properties: 
+      Addresses: 
+        - 130.25.10.158/32
+      Description: Placeholder IP Set for MISP updates
+      IPAddressVersion: IPV4
+      Name: CTI-Blocklist-IPSet
+      Scope: REGIONAL
+  IPInsightsWAFv2IPBlacklist:
+    Type: AWS::WAFv2::IPSet
+    Properties: 
+      Addresses: 
+        - 130.25.10.158/32
+      Description: Placeholder IP Set for Sagemaker updates
+      IPAddressVersion: IPV4
+      Name: IPInsights-Blocklist-IPSet
+      Scope: REGIONAL
+  WAFv2WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: SyntheticSun-WACL
+      Scope: REGIONAL
+      Description: Web ACL for SyntheticSun IP Sets and AMRs
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: ExampleWebACLMetric
+      Rules:
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 0
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSetMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              ExcludedRules: []
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 1
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRuleSetMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+              ExcludedRules: []
+        - Name: AWSManagedRulesAmazonIpReputationList
+          Priority: 2
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesAmazonIpReputationListMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+              ExcludedRules: []
+        - Name: AWSManagedRulesAnonymousIpList
+          Priority: 3
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesAnonymousIpListMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAnonymousIpList
+              ExcludedRules: []
+        - Name: ThreatIntelIPBlacklist
+          Priority: 4
+          Action:
+            Block: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: IpBlacklistMetric
+          Statement:
+            IPSetReferenceStatement:
+              Arn: !GetAtt ThreatIntelWAFv2IPBlacklist.Arn
+        - Name: IpInsightsIPBlacklist
+          Priority: 5
+          Action:
+            Block: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: IpBlacklistMetric
+          Statement:
+            IPSetReferenceStatement:
+              Arn: !GetAtt IPInsightsWAFv2IPBlacklist.Arn
+  ALBWAFv2Association:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties: 
+      ResourceArn: !Ref ApplicationLoadBalancerArn
+      WebACLArn: !GetAtt WAFv2WebACL.Arn
+  WAFLoggingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${WAFv2WebACL}-waf-logs-${AWS::Region}-${AWS::AccountId}'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  WAFLoggingDeliveryStream:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: aws-waf-logs-syntheticsun
+      S3DestinationConfiguration:
+        BucketARN: !GetAtt WAFLoggingBucket.Arn
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 5
+        CompressionFormat: UNCOMPRESSED
+        Prefix: syntheticsun
+        RoleARN: !GetAtt WAFLoggingDeliveryStreamRole.Arn
+  WAFLoggingDeliveryStreamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: firehosetrust
+            Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Sub '${AWS::AccountId}'
+  WAFLoggingDeliveryStreamRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: Firehose-WAFLog-SyntheticSun-Policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:AbortMultipartUpload
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:ListBucketMultipartUploads
+              - s3:PutObject
+            Resource:
+              - !Join 
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref WAFLoggingBucket
+              - !Join 
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref WAFLoggingBucket
+                  - '*'
+      Roles: !Ref WAFLoggingDeliveryStreamRole
+  MISPSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allows HTTPS traffic to the MISP Instance
+      GroupName: SyntheticSun-MISP-HTTPS-SG
+      VpcId: !Ref SGVpcId
+      Tags:
+        -
+          Key: Name
+          Value: SyntheticSun-MISP-HTTPS-SG
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 0
+        CidrIp: 0.0.0.0/0
+  MISPInstanceProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SyntheticSun-MISP-InstanceProfile
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: ec2trust
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+  MISPInstanceProfileRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: SyntheticSun-MISP-InstanceProfile-Policy
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy
+      Roles: !Ref MISPInstanceProfileRole
+  MISPInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: SyntheticSun-MISP-Profile
+      Roles: 
+        - !Ref MISPInstanceProfileRole
+  MISPInstance:
+    Type: AWS::EC2::Instance
+    Properties: 
+      DisableApiTermination: true
+      IamInstanceProfile: !GetAtt MISPInstanceProfile.Arn
+      ImageId: !Ref MISPAmiId
+      InstanceType: !Ref MISPInstanceTypeParameter
+      SecurityGroupIds: 
+        - !GetAtt MISPSecGroup.GroupId
+      SubnetId: !Ref PublicSubnetId
+      Tags: 
+        - 
+          Key: Name
+          Value: SyntheticSun-MISP-Instance
+  SyntheticSunArtifacts:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'syntheticsun-artifacts-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+Outputs:
+  BucketName:
+    Value: !Ref SyntheticSunArtifacts
+  FirehoseName:
+    Value: !Ref WAFLoggingDeliveryStream

@@ -14,14 +14,14 @@ Parameters:
   ThreatIntelWAFIpSetName:
     Type: String
     Description: The name of the threat intel WAF IP Set created in Stage 1
-    Default: LOL-REPLACEME
+    Default: CTI-Blocklist-IPSet
   ThreatIntelWAFIpSetId:
     Type: String
     Description: The logical ID of the threat intel WAF IP Set created in Stage 1
   IpInsightsIntelWAFIpSetName:
     Type: String
     Description: The name of the IP Insights WAF IP Set created in Stage 1
-    Default: LOL-REPLACEME
+    Default: IPInsights-Blocklist-IPSet
   IpInsightsIntelWAFIpSetId:
     Type: String
     Description: The logical ID of the IP Insights WAF IP Set created in Stage 1
@@ -53,7 +53,7 @@ Resources:
       Code:
         S3:
           Bucket: !Ref ArtifactsBucketName
-          Key: stage2-automation-package.zip
+          Key: syntheticsun-codecommit.zip
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -221,19 +221,22 @@ Resources:
         PrivilegedMode: True
         Type: LINUX_CONTAINER
         EnvironmentVariables:
+        - Name: SYNTHETIC_SUN_ARTIFACT_BUCKET
+          Type: PLAINTEXT
+          Value: !Ref ArtifactsBucketName
         - Name: MISP_IP_IOC_DDB_TABLE
           Type: PLAINTEXT
           Value: !Ref IPIoCDDB
         - Name: IP_INSIGHTS_DDB_TABLE
           Type: PLAINTEXT
-          Value: !Ref CTIThreatIntelSet
+          Value: !Ref IPInsightsDDB
         - Name: GUARDDUTY_DETECTOR_ID
           Type: PLAINTEXT
           Value: !Ref GuardDutyDetectorId
-        - Name: CTI_THREAT_INTEL_SET
+        - Name: CTI_THREAT_INTEL_SET_ID
           Type: PLAINTEXT
-          Value: !Ref ThreatIntelWAFIpSetId
-        - Name: ANOMALY_THREAT_INTEL_SET
+          Value: !Ref CTIThreatIntelSet
+        - Name: ANOMALY_THREAT_INTEL_SET_ID
           Type: PLAINTEXT
           Value: !Ref IpInsightsThreatIntelSet
       LogsConfig:
