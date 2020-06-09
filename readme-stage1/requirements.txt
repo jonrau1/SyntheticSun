@@ -1,0 +1,5 @@
+boto3
+awscli
+sagemaker
+requests
+requests-aws4auth

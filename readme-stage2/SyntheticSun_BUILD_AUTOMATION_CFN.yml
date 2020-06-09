@@ -44,7 +44,7 @@ Resources:
       DetectorId: !Ref GuardDutyDetectorId
       Format: TXT
       Location: !Sub 'https://s3-${AWS::Region}.amazonaws.com/${ArtifactsBucketName}/anomaly-threatlist.txt'
-      Name: ipinsights-threatlist
+      Name: anomaly-threatlist
   SyntheticSunCICDCodeCommit:
     Type: AWS::CodeCommit::Repository
     Properties:

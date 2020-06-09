@@ -6,7 +6,7 @@ Parameters:
     Description: The ARN of the Application Load Balancer to attach the SyntheticSun WAF to
   MISPAmiId:
     Type: AWS::EC2::Image::Id
-    Description: The AMI ID for MISP-Cloud in us-east-1. Change to one applicable for your Region, availabe at github/misp-cloud
+    Description: The AMI ID for MISP-Cloud in us-east-1. Change to one applicable for your Region, AMIs are availabe at MISP/misp-cloud GitHub
     Default: ami-0e0e49a00c1176d7d
   PublicSubnetId:
     Type: AWS::EC2::Subnet::Id

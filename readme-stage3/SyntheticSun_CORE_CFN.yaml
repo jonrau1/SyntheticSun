@@ -4,18 +4,6 @@ Parameters:
   ArtifactsBucketName:
     Type: String
     Description: Name of the S3 bucket where SyntheticSun artifacts were uploaded during Stage 1 of the readme
-  ElasticsearchArn:
-    Type: String
-    Description: The ARN of the SyntheticSun-ES domain
-  IPIoCDDBArn:
-    Type: String
-    Description: The ARN of the IP IoC DynamoDB table
-  DomainIoCDDBArn:
-    Type: String
-    Description: The ARN of the Domain IoC DynamoDB table
-  IPInsightsDDBArn:
-    Type: String
-    Description: The ARN of the IP Insights DynamoDB table
   KibanaUrl:
     Type: String
     Description: URL of the Kibana endpoint for the SyntheticSun-ES domain
@@ -29,6 +17,10 @@ Parameters:
   CloudTrailBucketName:
     Type: String
     Description: Name of the S3 bucket where CloudTrail logs are sent to in your account
+  IpInsightsNotebookUri:
+    Type: String
+    Description: The URI of the Sagmaker IP Insights image
+    Default: 382416733822.dkr.ecr.us-east-1.amazonaws.com/ipinsights:1
   ALBAccessLogS3Bucket:
     Type: String
     Description: The bucket that ALB Access Logs are published to
@@ -69,12 +61,12 @@ Resources:
           - Effect: Allow
             Action:
             - dynamodb:PutItem
-            Resource: !Ref IPInsightsDDBArn
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-Insights-Anomalies'
           - Effect: Allow
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Ref ElasticsearchArn
+            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
           - Effect: Allow
             Action:
             - s3:ListBucket
@@ -149,19 +141,19 @@ Resources:
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Ref ElasticsearchArn
+            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
           - Effect: Allow
             Action:
             - dynamodb:PutItem
-            Resource: !Ref IPInsightsDDBArn
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-Insights-Anomalies'
           - Effect: Allow
             Action:
             - dynamodb:Query
-            Resource: !Ref IPIoCDDBArn
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-IOC-Threat-Intel'
           - Effect: Allow
             Action:
             - dynamodb:Query
-            Resource: !Ref DomainIoCDDBArn
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/Domain-IOC-Threat-Intel'
           - Effect: Allow
             Action:
             - sagemaker:InvokeEndpoint
@@ -231,11 +223,11 @@ Resources:
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Ref ElasticsearchArn
+            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
           - Effect: Allow
             Action:
             - dynamodb:Query
-            Resource: !Ref IPIoCDDBArn
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-IOC-Threat-Intel'
   CWLSubscriptionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -307,19 +299,19 @@ Resources:
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Ref ElasticsearchArn
+            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
           - Effect: Allow
             Action:
             - dynamodb:PutItem
-            Resource: !Ref IPInsightsDDBArn
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-Insights-Anomalies'
           - Effect: Allow
             Action:
             - dynamodb:Query
-            Resource: !Ref IPIoCDDBArn
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-IOC-Threat-Intel'
           - Effect: Allow
             Action:
             - dynamodb:Query
-            Resource: !Ref DomainIoCDDBArn
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/Domain-IOC-Threat-Intel'
           - Effect: Allow
             Action:
             - sagemaker:InvokeEndpoint
@@ -513,12 +505,12 @@ Resources:
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Ref ElasticsearchArn
+            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
   IPInsightsModel:
     Type: AWS::SageMaker::Model
     Properties:
       PrimaryContainer:
-        Image: TO-DO
+        Image: !Ref IpInsightsNotebookUri
         ModelDataUrl: !Sub 'S3://${ArtifactsBucketName}/model.tar.gz'
       ExecutionRoleArn: !GetAtt IPInsightsExecutionRole.Arn
   IPInsightsEndpointConfig:
