@@ -39,46 +39,40 @@ iterator = paginator.paginate(Bucket=ctBucket)
 for page in iterator:
     for item in page['Contents']:
         s3Obj = str(item['Key'])
-        # drop any CloudTrail keys that are digests
         digestMatch = ctDigestRegex.search(s3Obj)
         if digestMatch:
             pass
         else:
-            # drop any keys that no not match the timestamp
-            timeDropper = s3TimestampFilter.search(s3Obj)
-            if timeDropper:
-                localFilePath = s3Obj.split('/')[-1]
-                s3.download_file(ctBucket, s3Obj, localFilePath)
-                with gzip.open(localFilePath,'r') as content:
-                    for line in content:
-                        # turn the decompressed logs into a dict
-                        cloudTrailLogs = json.loads(line)
-                        for r in cloudTrailLogs['Records']:
-                            # drop logs that are invoked by AWS services directly
+            localFilePath = s3Obj.split('/')[-1]
+            s3.download_file(ctBucket, s3Obj, localFilePath)
+            with gzip.open(localFilePath,'r') as content:
+                for line in content:
+                    # turn the decompressed logs into a dict
+                    cloudTrailLogs = json.loads(line)
+                    for r in cloudTrailLogs['Records']:
+                        # drop logs that are invoked by AWS services directly
+                        try:
+                            userIdType = str(r['userIdentity']['type'])
+                        except:
+                            pass
+                        if userIdType == 'AWSService':
+                            pass
+                        else:
                             try:
-                                userIdType = str(r['userIdentity']['type'])
+                                clientIp = str(r['sourceIPAddress'])
                             except:
                                 pass
-                            if userIdType == 'AWSService':
-                                pass
+                            # drop source IP address that is not an IP, this is likely an AWS SPN and should be dropped anyway
+                            ipv4Match = ipv4Regex.match(clientIp)
+                            if ipv4Match:
+                                iamPrincipalId = str(r['userIdentity']['principalId'])
+                                ctDict = {
+                                    'principalId': iamPrincipalId,
+                                    'ipaddress': clientIp
+                                }
+                                ctList.append(ctDict)
                             else:
-                                try:
-                                    clientIp = str(r['sourceIPAddress'])
-                                except:
-                                    pass
-                                # drop source IP address that is not an IP, this is likely an AWS SPN and should be dropped anyway
-                                ipv4Match = ipv4Regex.match(clientIp)
-                                if ipv4Match:
-                                    iamPrincipalId = str(r['userIdentity']['principalId'])
-                                    ctDict = {
-                                        'principalId': iamPrincipalId,
-                                        'ipaddress': clientIp
-                                    }
-                                    ctList.append(ctDict)
-                                else:
-                                    pass
-            else:
-                pass
+                                pass
 
 keys = ctList[0].keys()
 with open('ct-training-data.csv', 'w') as outf:

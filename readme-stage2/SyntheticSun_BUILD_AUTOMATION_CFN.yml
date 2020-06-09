@@ -18,13 +18,6 @@ Parameters:
   ThreatIntelWAFIpSetId:
     Type: String
     Description: The logical ID of the threat intel WAF IP Set created in Stage 1
-  IpInsightsIntelWAFIpSetName:
-    Type: String
-    Description: The name of the IP Insights WAF IP Set created in Stage 1
-    Default: IPInsights-Blocklist-IPSet
-  IpInsightsIntelWAFIpSetId:
-    Type: String
-    Description: The logical ID of the IP Insights WAF IP Set created in Stage 1
   GuardDutyDetectorId:
     Type: String
     Description: The Detector ID for GuardDuty in the region you are deploying SyntheticSun
@@ -227,15 +220,6 @@ Resources:
         - Name: WAF_CTI_IP_SET_NAME
           Type: PLAINTEXT
           Value: !Ref ThreatIntelWAFIpSetName
-        - Name: IP_INSIGHTS_DDB_TABLE
-          Type: PLAINTEXT
-          Value: !Ref IPInsightsDDB
-        - Name: IP_INSIGHTS_IP_SET_ID
-          Type: PLAINTEXT
-          Value: !Ref IpInsightsIntelWAFIpSetId
-        - Name: IP_INSIGHTS_IP_SET_NAME
-          Type: PLAINTEXT
-          Value: !Ref IpInsightsIntelWAFIpSetName
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED

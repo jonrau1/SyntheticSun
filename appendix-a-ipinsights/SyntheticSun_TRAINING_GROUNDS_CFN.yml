@@ -1,0 +1,150 @@
+# This file is part of SyntheticSun.
+
+# SyntheticSun is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# SyntheticSun is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along with SyntheticSun.  
+# If not, see https://github.com/jonrau1/SyntheticSun/blob/master/LICENSE.
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: This Template will create the supporting infrastructure for SyntheticSun
+Metadata:
+  License: GPL-3.0
+Parameters:
+  CTBucketName:
+    Type: String
+    Description: Name of the S3 Bucket containing CloudTrail logs. Check bucket policy to ensure it will allow ECS to ListObjects and Download
+  CloudTrailContainerURI: 
+    Type: String
+    Description: ECR URI of the SyntheticSun CloudTrail IP Insights training container
+  SGVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID to create the new security group in. Must be the same VPC that has your subnet
+  SyntheticSunClusterName:
+    Type: String
+    Description: Name for the SyntheticSun ECS Cluster
+    Default: SyntheticSun-Cluster
+Resources:
+  SyntheticSunSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: SyntheticSun-MLTrainer-Fargate-HTTPS
+      GroupDescription: HTTPS Security Group for SyntheticSun training job on Fargate - Managed by CloudFormation
+      VpcId: !Ref SGVpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: 0.0.0.0/0
+        Description: HTTPS Inbound
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
+  SyntheticSunECSCloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join [ '-', [ !Ref SyntheticSunClusterName, !Ref 'AWS::StackName' ] ]
+      RetentionInDays: 90
+  SyntheticSunECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties: 
+      ClusterName: !Ref SyntheticSunClusterName
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+  SyntheticSunTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SyntheticSun-FargateTrainer-Role
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+      Policies:
+      - PolicyName: SyntheticSun-FargateTrainer-RolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - ecr:GetAuthorizationToken
+            - ecr:BatchCheckLayerAvailability
+            - ecr:GetDownloadUrlForLayer
+            - ecr:BatchGetImage
+            - kms:Decrypt
+            - kms:DescribeKey
+            - iam:PassRole
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: ecs-tasks.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+        - Effect: Allow
+          Principal: { Service: sagemaker.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  SyntheticSunExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SyntheticSun-FargateExecRole
+      Policies:
+      - PolicyName: SyntheticSun-FargateExecRolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - ecr:GetAuthorizationToken
+            - ecr:BatchCheckLayerAvailability
+            - ecr:GetDownloadUrlForLayer
+            - ecr:BatchGetImage
+            - kms:Decrypt
+            - kms:DescribeKey
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - ssm:GetParameter
+            - ssm:GetParameters
+            Resource: '*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: ecs-tasks.amazonaws.com }
+          Action:
+          - sts:AssumeRole
+  SyntheticSunECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties: 
+      ContainerDefinitions: 
+        # TO-DO: DOUBLE THIS
+        -   
+          Image: !Ref CloudTrailContainerURI
+          Name: syntheticsun-cloudtrail-trainer
+          Environment:
+            - Name: CLOUDTRAIL_LOGS_BUCKET
+              Value: !Ref CTBucketName
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref SyntheticSunECSCloudWatchLogsGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: cloudtrail-trainer
+      Cpu: 4096
+      ExecutionRoleArn: !GetAtt SyntheticSunExecutionRole.Arn
+      Memory: 8192
+      NetworkMode: awsvpc
+      TaskRoleArn: !GetAtt SyntheticSunTaskRole.Arn
+      Family: SyntheticSun-IPInsights-Trainer
+      RequiresCompatibilities:
+        - FARGATE

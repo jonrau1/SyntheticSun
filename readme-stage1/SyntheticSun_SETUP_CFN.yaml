@@ -86,15 +86,6 @@ Resources:
       IPAddressVersion: IPV4
       Name: CTI-Blocklist-IPSet
       Scope: REGIONAL
-  IPInsightsWAFv2IPBlacklist:
-    Type: AWS::WAFv2::IPSet
-    Properties: 
-      Addresses: 
-        - 130.25.10.158/32
-      Description: Placeholder IP Set for Sagemaker updates
-      IPAddressVersion: IPV4
-      Name: IPInsights-Blocklist-IPSet
-      Scope: REGIONAL
   WAFv2WebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
@@ -163,17 +154,6 @@ Resources:
           Statement:
             IPSetReferenceStatement:
               Arn: !GetAtt ThreatIntelWAFv2IPBlacklist.Arn
-        - Name: IpInsightsIPBlacklist
-          Priority: 5
-          Action:
-            Block: {}
-          VisibilityConfig:
-            SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
-            MetricName: IpBlacklistMetric
-          Statement:
-            IPSetReferenceStatement:
-              Arn: !GetAtt IPInsightsWAFv2IPBlacklist.Arn
   ALBWAFv2Association:
     Type: AWS::WAFv2::WebACLAssociation
     Properties: 
