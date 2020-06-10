@@ -109,7 +109,7 @@ Resources:
           ELASTICSEARCH_URL: !Ref KibanaUrl
       Code:
         S3Bucket: !Ref ArtifactsBucketName
-        S3Key: syntheticsun-cloudtrail-lambda-function.zip
+        S3Key: syntheticsun-cloudtrail-function.zip 
   CTLogLambdaParserFunctionS3Event:
     Type: AWS::Lambda::Permission
     Properties:
@@ -191,7 +191,7 @@ Resources:
           ELASTICSEARCH_URL: !Ref KibanaUrl
       Code:
         S3Bucket: !Ref ArtifactsBucketName
-        S3Key: syntheticsun-waf-lambda-function.zip
+        S3Key: syntheticsun-waf-function.zip
   WAFLogLambdaParserFunctionS3Event:
     Type: AWS::Lambda::Permission
     Properties:
@@ -275,7 +275,7 @@ Resources:
           ELASTICSEARCH_URL: !Ref KibanaUrl
       Code:
         S3Bucket: !Ref ArtifactsBucketName
-        S3Key: syntheticsun-vpcflow-lambda-function.zip
+        S3Key: syntheticsun-vpcflow-function.zip
   ALBLogParserLambdaExecRole:
     Type: AWS::IAM::Role
     Properties:
@@ -356,7 +356,7 @@ Resources:
           ELASTICSEARCH_URL: !Ref KibanaUrl
       Code:
         S3Bucket: !Ref ArtifactsBucketName
-        S3Key: syntheticsun-vpcflow-lambda-function.zip
+        S3Key: syntheticsun-alblog-function.zip
   ALBLogLambdaParserFunctionS3Event:
     Type: AWS::Lambda::Permission
     Properties:

@@ -59,6 +59,8 @@ The second diagram details anomaly detection and threat intelligence enrichment 
 
 2. Deploy a CloudFormation stack from `SyntheticSun_CORE_CFN.yaml`. This can take a few minutes due to the Sagemaker infrastructure services.
 
+**Note:** If you trained new models in [Appendix A](https://github.com/jonrau1/SyntheticSun/tree/master/appendix-a-ipinsights) you must manually add the Sagemaker resources for a duplicate model configuration and endpoint as well as modify the Lambda function environmental variables. By default only a single endpoint configuration is provided in Stage 3 to be used by both WAF and CloudTrail functions.
+
 ### To-Do:
 - Add Sagemaker check to WAF Log
 - Add Sagemaker check to Cloudtrail
