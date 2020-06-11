@@ -4,9 +4,9 @@ Parameters:
   ArtifactsBucketName:
     Type: String
     Description: Name of the S3 bucket where SyntheticSun artifacts were uploaded during Stage 1 of the readme
-  KibanaUrl:
+  ElasticsearchUrl:
     Type: String
-    Description: URL of the Kibana endpoint for the SyntheticSun-ES domain
+    Description: SyntheticSun-ES domain elasticsearch URL. REMOVE THE TRAILING SLASH.
   RequestsLambdaLayer:
     Type: String
     Description: Python 3.7 or 3.8 Lambda Layer ARN for the Requests module. UPDATE FOR YOUR REGION

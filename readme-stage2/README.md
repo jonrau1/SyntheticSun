@@ -12,16 +12,25 @@ SyntheticSun is a proof of concept (POC) defense-in-depth security automation an
 In this Stage we will configure the MISP platform to bring in cyber threat intelligence and prepare it for export. We will also deploy all necessary services for the automation of edge protection and processing of cyber threat intelligence (CTI) indicators of compromise (IoCs). We'll go over the solutions architecture first, deployment instructions are below it.
 
 ### Solution Architecture
-As noted in the architecture diagram this is a generalized view of how the different services are deployed and some services are not shown. Sagemaker automation is explained in greater detail in the Phase 3 solution architecture, the IP Set and Threat Intel Set for the Anomaly-based IPv4 IoCs have placeholder values and will be overwritten by subsequent runs. 
-
-**Important note:** This solution architecture is assuming you will run it in the account where your [GuardDuty Delegated Admin](https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_organizations.html) and [AWS Firewall Manager Administrator Account](https://docs.aws.amazon.com/waf/latest/developerguide/enable-integration.html) are designated if you are part of an AWS Organization.
+Below is the high level view of the four different build automation jobs that run. While no direct links are shown all four CodeBuild projects get their artifacts from a single CodeCommit repository. All builds are scheduled using time-based EventBridge events and all build logs are published to CloudWatch Logs.
 
 ![SyntheticSun Build Automation Architecture](https://github.com/jonrau1/SyntheticSun/blob/master/img/syntheticsun-buildautomation-diagram.jpg)
-1. The first CodeBuild project uses various Python libaries to parse CTI IoC's from [Anomali's LIMO feed](https://www.anomali.com/community/limo) for selected threat intelligence feeds. Anomali calls these threat intelligence feeds Collections. IoCs are converted from XML to JSON before being loaded into DynamoDB. This project runs every 4 hours.
-2. The second CodeBuild project uses the Python `requests` libary and [MISP's built-in API](https://www.circl.lu/doc/misp/automation/) to parse threat intelligence feeds you will setup in this Section. The feeds are already in JSON and just need to be parsed for selected keys and loaded into DynamoDB. This project runs every 4 hours.
-3. The thrid CodeBuild project runs a `Scan` against the IP-IoC table, grabs the latest 10,000 IP IoC's and writes them into their respective WAF IP Sets, overwriting all older values. This project runs every 6 days.
-4. The fourth and final CodeBuild project runs a `Scan` against both the IP-IoC and Anomaly tables, grabs the latest 250,000 IP IoC's and uploads new plaintext files into an S3 bucket before calling the GuardDuty `UpdateThreatIntelSet` API. This project runs every 6 days.
-5. The GuardDuty Master will propogate the threat intel sets to all member accounts, if configured, Firewall Manager propogates the new IP Sets to managed Web ACLs in member accounts for WAFv2.
+##### LIMO Automations
+1. CodeBuild uses various Python libaries to parse IoC's from [Anomali's LIMO feed](https://www.anomali.com/community/limo)by collections. IoCs are returned in [STIX](https://stixproject.github.io/about/) XML.
+2. STIX XML is converted to JSON, parsed and normalized before being written into DynamoDB. This project runs every 4 hours.
+##### MISP Automations
+1. [MISP](https://www.misp-project.org/) continually pulls and publishes events from a variety of public CTI feeds. Native jobs are used to schedule the pull and refresh of feeds and corresponding events.
+2. CodeBuild retrieves the MISP automation API key from Systems Manager [Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-about-examples.html#parameter-types) (SecureString).
+3. CodeBuild uses [MISP's built-in API](https://www.circl.lu/doc/misp/automation/) to perform tag-based pulls on the feeds, the response is in JSON which is simply looped through to normalize the IoCs.
+4. The parsed and normalized CTI is written into a corresponding DynamoDB table. This project runs every 4 hours.
+##### WAF Automations
+1. CodeBuild runs a `Scan` against the IP-based DynamoDB table, grabs the latest 10,000 IP IoC's and writes them into their respective WAF [IP Sets](https://docs.aws.amazon.com/waf/latest/APIReference/API_IPSet.html), overwriting all older values. This project runs every 6 days.
+2. (**Optional**) Firewall Manager can be used to mandate a desired state for a WAFv2 Web ACL using [AMRs](https://aws.amazon.com/blogs/aws/announcing-aws-managed-rules-for-aws-waf/) and this automated IP Set based on CTI.
+##### GuardDuty Automations
+1. CodeBuild runs a `Scan` against the IP and Anomaly (feed in another workflow) DynamoDB tables. The latest IP addresses are written in text files and uploaded to S3. Threat intel sets for GuardDuty support up to 6 sets with 250,000 IP's each.
+2. CodeBuild calls the `UpdateThreatIntelSet` API which instructs GuardDuty to retrieve and activate the latest text files. This project runs every 6 days.
+
+**Important note:** This solution architecture is assuming you will run it in the account where your [GuardDuty Delegated Admin](https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_organizations.html) and [AWS Firewall Manager Administrator Account](https://docs.aws.amazon.com/waf/latest/developerguide/enable-integration.html) are designated if you are part of an AWS Organization.
 
 ### Deployment instructions
 1. Log in to the MISP server deployed in Phase 1. Refer to the public IP address in the EC2 console, you will likely get an untrusted X.509 cert warning in your browser, the default login credentials are `admin@admin.test` and the password is `admin`. Refer to the [MISP-Cloud project](https://github.com/MISP/misp-cloud#credentials--access) in case this value or the AMI changes. **Note** if you have trouble reaching the sign-in page attempt to add `/users/login` to the end of the IP address / hostname.
@@ -61,10 +70,9 @@ As noted in the architecture diagram this is a generalized view of how the diffe
 9. Finally, navigate to **Administration >> Scheduled Tasks**. Select the **Frequency (h)** row by double-clicking and enter a `4` for **fetch_feeds** and **pull_all** as shown below. This will allow MISP to continuously update the feeds to pull the latest events which will be published and available to DynamoDB.
 ![MISP Scheduled Tasks](https://github.com/jonrau1/SyntheticSun/blob/master/img/syntheticsun-misp-scheduledtasks.JPG)
 
-10. Deploy a CloudFormation stack from `SyntheticSun_BUILD_AUTOMATION_CFN.yaml`. This should not take too long, ensure that you are running this in your GuardDuty Master account if you are part of an AWS Organization.
+10. Deploy a CloudFormation stack from `SyntheticSun_BUILD_AUTOMATION_CFN.yaml`. This should not take too long, ensure that you are running this in your GuardDuty Master account if you are part of an AWS Organization. Ensure you run at least the MISP project after deployment before moving onto Stage 3.
 
-
-**[Phase 3 starts here](https://github.com/jonrau1/SyntheticSun/tree/master/readme-stage3)**
+**[Stage 3 starts here](https://github.com/jonrau1/SyntheticSun/tree/master/readme-stage3)**
 
 ## FAQ
 
