@@ -1,0 +1,38 @@
+{
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "aws:s3",
+      "awsRegion": "us-east-1",
+      "eventTime": "2020-04-12T18:39:32.581Z",
+      "eventName": "ObjectCreated:Put",
+      "userIdentity": {
+        "principalId": "AWS:AROAWC26C2VWI3SKBRHFR:AWSFirehoseToS3"
+      },
+      "requestParameters": {
+        "sourceIPAddress": "100.27.8.14"
+      },
+      "responseElements": {
+        "x-amz-request-id": "AD7A052E60A121CA",
+        "x-amz-id-2": "lBZgs+RIlsTYt0v9RnbT2KUWt8vuIEMZFXmNyRfepBwBKQpJd1BedEDrpAlhLhyWqDWcwI8qDOWnr36/Ydr7Ror3uJ+U8jMxORrDJTTDAjE="
+      },
+      "s3": {
+        "s3SchemaVersion": "1.0",
+        "configurationId": "0e32d9fc-46c9-44b2-b359-3d182c6d4596",
+        "bucket": {
+          "name": "electriceyes-cloudtrailmain-useast1",
+          "ownerIdentity": {
+            "principalId": "A19EY7CEZK1XL1"
+          },
+          "arn": "primus-pilus-alb-access-logs"
+        },
+        "object": {
+          "key": "AWSLogs/418419758444/CloudTrail/us-east-1/2020/06/11/418419758444_CloudTrail_us-east-1_20200611T0135Z_FFRSZDlti0pZXDu4.json.gz",
+          "size": 13607,
+          "eTag": "d6ce2624deda308741e9c9acdcc2a90a",
+          "sequencer": "005E936069D6FCBCA1"
+        }
+      }
+    }
+  ]
+}
