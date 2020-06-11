@@ -58,49 +58,49 @@ Resources:
           Statement:
           - Effect: Allow
             Action:
-            - codecommit:GitPull
+              - codecommit:GitPull
             Resource: !GetAtt SyntheticSunCICDCodeCommit.Arn
           - Effect: Allow
             Action:
-            - logs:CreateLogGroup
-            - logs:CreateLogStream
-            - logs:PutLogEvents
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
             Resource: '*'
           - Effect: Allow
             Action:
-            - s3:GetObject
-            - s3:GetObjectVersion
-            - s3:PutObject
-            - s3:GetBucketAcl
-            - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
             Resource: '*'
           - Effect: Allow
             Action:
-            - guardduty:GetThreatIntelSet
-            - guardduty:UpdateThreatIntelSet
-            - wafv2:GetIPSet
-            - wafv2:UpdateIPSet
-            - kms:Decrypt
-            - ssm:GetParameter
-            - ssm:GetParameters
+              - guardduty:GetThreatIntelSet
+              - guardduty:UpdateThreatIntelSet
+              - wafv2:GetIPSet
+              - wafv2:UpdateIPSet
+              - kms:Decrypt
+              - ssm:GetParameter
+              - ssm:GetParameters
             Resource: '*'
           - Effect: Allow
             Action:
-            - dynamodb:PutItem
-            - dynamodb:Scan
-            - dynamodb:Query
+              - dynamodb:PutItem
+              - dynamodb:Scan
+              - dynamodb:Query
             Resource: !GetAtt IPIoCDDB.Arn
           - Effect: Allow
             Action:
-            - dynamodb:PutItem
-            - dynamodb:Scan
-            - dynamodb:Query
+              - dynamodb:PutItem
+              - dynamodb:Scan
+              - dynamodb:Query
             Resource: !GetAtt DomainIoCDDB.Arn
           - Effect: Allow
             Action:
-            - dynamodb:PutItem
-            - dynamodb:Scan
-            - dynamodb:Query
+              - dynamodb:PutItem
+              - dynamodb:Scan
+              - dynamodb:Query
             Resource: !GetAtt IPInsightsDDB.Arn
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -108,18 +108,27 @@ Resources:
         - Effect: Allow
           Principal: { Service: codebuild.amazonaws.com }
           Action:
-          - sts:AssumeRole
+            - sts:AssumeRole
   CodeBuildEventRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: SyntheticSun-CodeBuild-Sched-Role
+      Policies:
+      - PolicyName: SyntheticSun-CodeBuildServiceRolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+              - codebuild:StartProject
+            Resource: '*'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
         - Effect: Allow
           Principal: { Service: events.amazonaws.com }
           Action:
-          - codebuild:StartProject
+            - sts:AssumeRole
   MISPAutomationsCodeBuild:
     Type: AWS::CodeBuild::Project
     Properties:

@@ -18,12 +18,25 @@ Description: This Template will create the supporting infrastructure for Synthet
 Metadata:
   License: GPL-3.0
 Parameters:
+  VPCPrivateIPCIDR:
+    Type: String
+    Description: The RFC1918 CIDR for your VPC to allow ECS and EFS to talk to each other via NFS
+    Default: 10.199.0.0/16
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Public Subnet where EFS and ECS will run. This subnet must have a route to an IGW to be considered public.
   CTBucketName:
     Type: String
     Description: Name of the S3 Bucket containing CloudTrail logs. Check bucket policy to ensure it will allow ECS to ListObjects and Download
   CloudTrailContainerURI: 
     Type: String
     Description: ECR URI of the SyntheticSun CloudTrail IP Insights training container
+  WAFLogBucketName:
+    Type: String
+    Description: Name of the S3 Bucket containing WAF logs. Check bucket policy to ensure it will allow ECS to ListObjects and Download
+  WAFContainerURI: 
+    Type: String
+    Description: ECR URI of the SyntheticSun WAF Logs IP Insights training container
   SGVpcId:
     Type: AWS::EC2::VPC::Id
     Description: VPC ID to create the new security group in. Must be the same VPC that has your subnet
@@ -32,7 +45,191 @@ Parameters:
     Description: Name for the SyntheticSun ECS Cluster
     Default: SyntheticSun-Cluster
 Resources:
-  SyntheticSunSecurityGroup:
+  # https://gist.github.com/guillaumesmo/4782e26500a3ac768888daab3c55b139
+  CTCustomTaskDefinition:
+    Type: Custom::TaskDefinition
+    Version: 1.0
+    Properties: 
+      ServiceToken: !GetAtt CustomResourceFunction.Arn
+      TaskDefinition: {
+        containerDefinitions: [
+          {
+            name: "syntheticsun-cloudtrail-trainer",
+            image: !Ref CloudTrailContainerURI,
+            mountPoints: [
+              {sourceVolume: "efs", containerPath: "/efs"}
+            ],
+            logConfiguration: {
+              logDriver: "awslogs",
+              secretOptions: [],
+              options: {
+                awslogs-group: !Ref SyntheticSunECSCloudWatchLogsGroup,
+                awslogs-region: !Ref 'AWS::Region',
+                awslogs-stream-prefix: "cloudtrail-trainer"
+              }
+            },
+            environment: [
+              {
+                name: "CLOUDTRAIL_LOGS_BUCKET",
+                value: !Ref CTBucketName
+              }
+            ]
+          }
+        ], 
+        family: "SyntheticSun-IPInsights-CT-Trainer",
+        taskRoleArn: !GetAtt SyntheticSunTaskRole.Arn,
+        executionRoleArn: !GetAtt SyntheticSunExecutionRole.Arn,
+        cpu: "4096",
+        memory: "16384",
+        networkMode: "awsvpc",
+        volumes: [
+          {
+            name: "efs",
+            efsVolumeConfiguration: {
+              fileSystemId: !Ref SyntheticSunEFS
+            }
+          }
+        ]
+      }
+  WAFCustomTaskDefinition:
+    Type: Custom::TaskDefinition
+    Version: 1.0
+    Properties: 
+      ServiceToken: !GetAtt CustomResourceFunction.Arn
+      TaskDefinition: {
+        containerDefinitions: [
+          {
+            name: "syntheticsun-waf-log-trainer",
+            image: !Ref WAFContainerURI,
+            mountPoints: [
+              {sourceVolume: "efs", containerPath: "/efs"}
+            ],
+            logConfiguration: {
+              logDriver: "awslogs",
+              secretOptions: [],
+              options: {
+                awslogs-group: !Ref SyntheticSunECSCloudWatchLogsGroup,
+                awslogs-region: !Ref 'AWS::Region',
+                awslogs-stream-prefix: "waf-log-trainer"
+              }
+            },
+            environment: [
+              {
+                name: "WAF_LOGS_BUCKET",
+                value: !Ref WAFLogBucketName
+              }
+            ],
+          }
+        ], 
+        family: "SyntheticSun-IPInsights-WAF-Trainer",
+        taskRoleArn: !GetAtt SyntheticSunTaskRole.Arn,
+        executionRoleArn: !GetAtt SyntheticSunExecutionRole.Arn,
+        cpu: "4096",
+        memory: "16384",
+        networkMode: "awsvpc",
+        volumes: [
+          {
+            name: "efs",
+            efsVolumeConfiguration: {
+              fileSystemId: !Ref SyntheticSunEFS
+            }
+          }
+        ]
+      }
+  CustomResourceFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          const aws = require('aws-sdk')
+          const response = require('cfn-response')
+          const ecs = new aws.ECS({apiVersion: '2014-11-13'})
+          exports.handler = function(event, context) {
+            console.log("REQUEST RECEIVED:\n" + JSON.stringify(event))
+            if (event.RequestType === 'Create' || event.RequestType === 'Update') {
+              ecs.registerTaskDefinition(event.ResourceProperties.TaskDefinition, function(err, data) {
+                if (err) {
+                  console.error(err);
+                  response.send(event, context, response.FAILED)
+                } else {
+                  console.log(`Created/Updated task definition ${data.taskDefinition.taskDefinitionArn}`)
+                  response.send(event, context, response.SUCCESS, {}, data.taskDefinition.taskDefinitionArn)
+                }
+              })
+            } else if (event.RequestType === 'Delete') {
+              ecs.deregisterTaskDefinition({taskDefinition: event.PhysicalResourceId}, function(err) {
+                if (err) {
+                  if (err.code === 'InvalidParameterException') {
+                    console.log(`Task definition: ${event.PhysicalResourceId} does not exist. Skipping deletion.`)
+                    response.send(event, context, response.SUCCESS)
+                  } else {
+                    console.error(err)
+                    response.send(event, context, response.FAILED)
+                  }
+                } else {
+                  console.log(`Removed task definition ${event.PhysicalResourceId}`)
+                  response.send(event, context, response.SUCCESS)
+                }
+              })
+            } else {
+              console.error(`Unsupported request type: ${event.RequestType}`)
+              response.send(event, context, response.FAILED)
+            }
+          }
+      Handler: index.handler
+      MemorySize: 128
+      Role: !GetAtt CustomResourceRole.Arn
+      Runtime: nodejs10.x
+      Timeout: 60
+  CustomResourceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: customresource
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - ecs:DeregisterTaskDefinition
+            - ecs:RegisterTaskDefinition
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - iam:PassRole
+            Resource: '*'
+  SyntheticSunEFS:
+    Type: AWS::EFS::FileSystem
+    Properties: 
+      Encrypted: true
+      FileSystemTags: 
+        -
+          Key: Name
+          Value: SyntheticSun-ECS-EFS
+      LifecyclePolicies: 
+        -  TransitionToIA: AFTER_7_DAYS
+      PerformanceMode: generalPurpose
+      ThroughputMode: bursting
+  SyntheticSunEFSMount:
+    Type: AWS::EFS::MountTarget
+    Properties: 
+      FileSystemId: !Ref SyntheticSunEFS
+      SecurityGroups: 
+        - !GetAtt SyntheticSunECSSecurityGroup.GroupId
+      SubnetId: !Ref PublicSubnetId
+  SyntheticSunECSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: SyntheticSun-MLTrainer-Fargate-HTTPS
@@ -44,6 +241,11 @@ Resources:
         ToPort: 443
         CidrIp: 0.0.0.0/0
         Description: HTTPS Inbound
+      - IpProtocol: tcp
+        FromPort: 2049
+        ToPort: 2049
+        Description: NFS Connection to EFS
+        CidrIp: !Ref VPCPrivateIPCIDR
       SecurityGroupEgress:
       - IpProtocol: tcp
         FromPort: 0
@@ -82,6 +284,11 @@ Resources:
             - kms:Decrypt
             - kms:DescribeKey
             - iam:PassRole
+            - elasticfilesystem:DescribeMountTargets
+            - elasticfilesystem:ClientMount
+            - elasticfilesystem:ClientWrite
+            - elasticfilesystem:ClientRootAccess
+            - elasticfilesystem:DescribeFileSystems
             Resource: '*'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -115,6 +322,11 @@ Resources:
             - logs:PutLogEvents
             - ssm:GetParameter
             - ssm:GetParameters
+            - elasticfilesystem:DescribeMountTargets
+            - elasticfilesystem:ClientMount
+            - elasticfilesystem:ClientWrite
+            - elasticfilesystem:ClientRootAccess
+            - elasticfilesystem:DescribeFileSystems
             Resource: '*'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -123,28 +335,3 @@ Resources:
           Principal: { Service: ecs-tasks.amazonaws.com }
           Action:
           - sts:AssumeRole
-  SyntheticSunECSTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Properties: 
-      ContainerDefinitions: 
-        # TO-DO: DOUBLE THIS
-        -   
-          Image: !Ref CloudTrailContainerURI
-          Name: syntheticsun-cloudtrail-trainer
-          Environment:
-            - Name: CLOUDTRAIL_LOGS_BUCKET
-              Value: !Ref CTBucketName
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Ref SyntheticSunECSCloudWatchLogsGroup
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: cloudtrail-trainer
-      Cpu: 4096
-      ExecutionRoleArn: !GetAtt SyntheticSunExecutionRole.Arn
-      Memory: 8192
-      NetworkMode: awsvpc
-      TaskRoleArn: !GetAtt SyntheticSunTaskRole.Arn
-      Family: SyntheticSun-IPInsights-Trainer
-      RequiresCompatibilities:
-        - FARGATE

@@ -4,12 +4,12 @@ Parameters:
   ArtifactsBucketName:
     Type: String
     Description: Name of the S3 bucket where SyntheticSun artifacts were uploaded during Stage 1 of the readme
-  KibanaUrl:
+  ElasticsearchUrl:
     Type: String
-    Description: URL of the Kibana endpoint for the SyntheticSun-ES domain
+    Description: SyntheticSun-ES domain elasticsearch URL. REMOVE THE TRAILING SLASH.
   RequestsLambdaLayer:
     Type: String
-    Description: Python 3.7 or 3.8 Lambda Layer ARN for the Requests module. Update for your region
+    Description: Python 3.7 or 3.8 Lambda Layer ARN for the Requests module. UPDATE FOR YOUR REGION
     Default: arn:aws:lambda:us-east-1:770693421928:layer:Klayers-python38-requests:5
   Aws4AuthLambdaLayer:
     Type: String
@@ -19,7 +19,7 @@ Parameters:
     Description: Name of the S3 bucket where CloudTrail logs are sent to in your account
   IpInsightsNotebookUri:
     Type: String
-    Description: The URI of the Sagmaker IP Insights image
+    Description: The URI of the Sagmaker IP Insights image. UPDATE FOR YOUR REGION
     Default: 382416733822.dkr.ecr.us-east-1.amazonaws.com/ipinsights:1
   ALBAccessLogS3Bucket:
     Type: String
@@ -66,7 +66,9 @@ Resources:
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+            Resource: 
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es/*'
           - Effect: Allow
             Action:
             - s3:ListBucket
@@ -141,7 +143,9 @@ Resources:
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+            Resource: 
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es/*'
           - Effect: Allow
             Action:
             - dynamodb:PutItem
@@ -223,7 +227,9 @@ Resources:
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+            Resource: 
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es/*'
           - Effect: Allow
             Action:
             - dynamodb:Query
@@ -299,7 +305,9 @@ Resources:
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+            Resource: 
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es/*'
           - Effect: Allow
             Action:
             - dynamodb:PutItem
@@ -505,7 +513,9 @@ Resources:
             Action:
             - es:ESHttpPost
             - es:ESHttpPut
-            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+            Resource: 
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es/*'
   IPInsightsModel:
     Type: AWS::SageMaker::Model
     Properties:
@@ -551,3 +561,145 @@ Resources:
                 Effect: Allow
                 Action: '*'
                 Resource: '*'
+  SecHubStreamLoggingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'sechub-firehose-fails-${AWS::Region}-${AWS::AccountId}'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  SecHubStream:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: syntheticsun-sechub-to-es
+      DeliveryStreamType: DirectPut
+      ElasticsearchDestinationConfiguration:
+        BufferingHints: 
+          IntervalInSeconds: 90
+          SizeInMBs: 5
+        CloudWatchLoggingOptions: 
+          Enabled: true
+          LogGroupName: deliverystream
+          LogStreamName: elasticsearchDelivery
+        DomainARN: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+        IndexName: security-hub
+        IndexRotationPeriod: OneMonth
+        RetryOptions: 
+          DurationInSeconds: 60
+        RoleARN: !GetAtt SecHubStreamRole.Arn
+        S3BackupMode: FailedDocumentsOnly
+        S3Configuration: 
+          BucketARN: !GetAtt SecHubStreamLoggingBucket.Arn
+          BufferingHints: 
+            IntervalInSeconds: 60
+            SizeInMBs: 50
+          CompressionFormat: GZIP
+          RoleARN: !GetAtt SecHubStreamRole.Arn
+          CloudWatchLoggingOptions: 
+            Enabled: true
+            LogGroupName: firehose/syntheticsun-sechub-to-es
+  SecHubStreamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SecHubFirehoseRole
+      Policies:
+      - PolicyName: SecHubFirehoseRolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+              - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - s3:AbortMultipartUpload
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:ListBucketMultipartUploads
+              - s3:PutObject
+            Resource:
+              - !Join 
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref SecHubStreamLoggingBucket
+              - !Join 
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref SecHubStreamLoggingBucket
+                  - '*'
+          - Effect: Allow
+            Action:
+              - es:DescribeElasticsearchDomain
+              - es:DescribeElasticsearchDomains
+              - es:DescribeElasticsearchDomainConfig
+              - es:ESHttp*
+            Resource: 
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es/*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: firehosetrust
+            Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Sub '${AWS::AccountId}'
+  SecHubToFirehoseEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SyntheticSun-SecHub2Firehose-Role
+      Policies:
+      - PolicyName: SyntheticSun-SecHub2Firehose-RolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+              - firehose:PutRecord
+              - firehose:PutRecordBatch
+            Resource: !GetAtt SecHubStream.Arn
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: events.amazonaws.com }
+          Action:
+            - sts:AssumeRole
+  SecHubToFirehoseEvent: 
+    Type: AWS::Events::Rule
+    Properties:
+      Name: SyntheticSun-SecHub2Firehose
+      Description: Sends matching Security Hub events to Elasticsearch for SyntheticSun - Managed by CloudFormation
+      EventPattern: 
+        source: 
+          - aws.securityhub
+        detail-type: 
+          - Security Hub Findings - Imported
+        detail: 
+          findings:
+            ProductFields:
+              aws/securityhub/SeverityLabel:
+              - LOW
+              - MEDIUM
+              - HIGH
+              - CRITICAL
+      RoleArn: !GetAtt SecHubToFirehoseEventRole.Arn
+      State: ENABLED
+      Targets: 
+        - 
+          Arn: !GetAtt SecHubStream.Arn
+          Id: sechubtrigger
