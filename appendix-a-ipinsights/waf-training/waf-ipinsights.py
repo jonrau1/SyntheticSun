@@ -34,7 +34,7 @@ iterator = paginator.paginate(Bucket=wafBucket)
 for page in iterator:
     for item in page['Contents']:
         s3Obj = str(item['Key'])
-        timeDropper = s3TimestampFilter.search(s3Obj)
+        timeDropper = wafTimestampFilter.search(s3Obj)
         if timeDropper:
             # drop any keys that no not match the timestamp
             localFilePath = s3Obj.split('/')[-1]
