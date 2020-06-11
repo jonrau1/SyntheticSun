@@ -9,7 +9,7 @@ Parameters:
     Description: URL of the Kibana endpoint for the SyntheticSun-ES domain
   RequestsLambdaLayer:
     Type: String
-    Description: Python 3.7 or 3.8 Lambda Layer ARN for the Requests module. Update for your region
+    Description: Python 3.7 or 3.8 Lambda Layer ARN for the Requests module. UPDATE FOR YOUR REGION
     Default: arn:aws:lambda:us-east-1:770693421928:layer:Klayers-python38-requests:5
   Aws4AuthLambdaLayer:
     Type: String
@@ -19,7 +19,7 @@ Parameters:
     Description: Name of the S3 bucket where CloudTrail logs are sent to in your account
   IpInsightsNotebookUri:
     Type: String
-    Description: The URI of the Sagmaker IP Insights image
+    Description: The URI of the Sagmaker IP Insights image. UPDATE FOR YOUR REGION
     Default: 382416733822.dkr.ecr.us-east-1.amazonaws.com/ipinsights:1
   ALBAccessLogS3Bucket:
     Type: String
