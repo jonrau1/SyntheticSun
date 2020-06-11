@@ -89,7 +89,7 @@ Resources:
           - Effect: Allow
             Action:
             - sagemaker:InvokeEndpoint
-            Resource: !Ref IPInsightsEndpoint
+            Resource: !Ref CTIPInsightsEndpoint
   CTLogParserLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -107,8 +107,8 @@ Resources:
       Environment:
         Variables:
           ANOMALY_DYNAMODB_TABLE: IP-Insights-Anomalies
-          SAGEMAKER_ENDPOINT: !GetAtt IPInsightsEndpoint.EndpointName
-          ELASTICSEARCH_URL: !Ref KibanaUrl
+          SAGEMAKER_ENDPOINT: !GetAtt CTIPInsightsEndpoint.EndpointName
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
       Code:
         S3Bucket: !Ref ArtifactsBucketName
         S3Key: syntheticsun-cloudtrail-function.zip 
@@ -161,7 +161,7 @@ Resources:
           - Effect: Allow
             Action:
             - sagemaker:InvokeEndpoint
-            Resource: !Ref IPInsightsEndpoint
+            Resource: !Ref WAFIPInsightsEndpoint
           - Effect: Allow
             Action:
             - s3:ListBucket
@@ -191,8 +191,8 @@ Resources:
           IP_IOC_DYNAMODB_TABLE: IP-IOC-Threat-Intel
           DOMAIN_IOC_DYNAMODB_TABLE: Domain-IOC-Threat-Intel
           ANOMALY_DYNAMODB_TABLE: IP-Insights-Anomalies
-          SAGEMAKER_ENDPOINT: !GetAtt IPInsightsEndpoint.EndpointName
-          ELASTICSEARCH_URL: !Ref KibanaUrl
+          SAGEMAKER_ENDPOINT: !GetAtt WAFIPInsightsEndpoint.EndpointName
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
       Code:
         S3Bucket: !Ref ArtifactsBucketName
         S3Key: syntheticsun-waf-function.zip
@@ -278,7 +278,7 @@ Resources:
       Environment:
         Variables:
           IP_IOC_DYNAMODB_TABLE: IP-IOC-Threat-Intel
-          ELASTICSEARCH_URL: !Ref KibanaUrl
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
       Code:
         S3Bucket: !Ref ArtifactsBucketName
         S3Key: syntheticsun-vpcflow-function.zip
@@ -322,10 +322,6 @@ Resources:
             Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/Domain-IOC-Threat-Intel'
           - Effect: Allow
             Action:
-            - sagemaker:InvokeEndpoint
-            Resource: !Ref IPInsightsEndpoint
-          - Effect: Allow
-            Action:
             - s3:ListBucket
             - s3:GetObject
             - s3:GetObjectVersion
@@ -360,8 +356,7 @@ Resources:
           IP_IOC_DYNAMODB_TABLE: IP-IOC-Threat-Intel
           DOMAIN_IOC_DYNAMODB_TABLE: Domain-IOC-Threat-Intel
           ANOMALY_DYNAMODB_TABLE: IP-Insights-Anomalies
-          SAGEMAKER_ENDPOINT: !GetAtt IPInsightsEndpoint.EndpointName
-          ELASTICSEARCH_URL: !Ref KibanaUrl
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
       Code:
         S3Bucket: !Ref ArtifactsBucketName
         S3Key: syntheticsun-alblog-function.zip
@@ -401,7 +396,7 @@ Resources:
         - !Ref Aws4AuthLambdaLayer
       Environment:
         Variables:
-          ELASTICSEARCH_URL: !Ref KibanaUrl
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
       Code:
         ZipFile: |
           import requests
@@ -453,7 +448,7 @@ Resources:
         - !Ref Aws4AuthLambdaLayer
       Environment:
         Variables:
-          ELASTICSEARCH_URL: !Ref KibanaUrl
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
       Code:
         ZipFile: |
           import requests
@@ -516,30 +511,52 @@ Resources:
             Resource: 
               - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
               - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es/*'
-  IPInsightsModel:
+  WAFIPInsightsModel:
     Type: AWS::SageMaker::Model
     Properties:
       PrimaryContainer:
         Image: !Ref IpInsightsNotebookUri
-        ModelDataUrl: !Sub 'S3://${ArtifactsBucketName}/model.tar.gz'
+        ModelDataUrl: !Sub 'S3://${ArtifactsBucketName}/waf-model.tar.gz'
       ExecutionRoleArn: !GetAtt IPInsightsExecutionRole.Arn
-  IPInsightsEndpointConfig:
+  CTIPInsightsModel:
+    Type: AWS::SageMaker::Model
+    Properties:
+      PrimaryContainer:
+        Image: !Ref IpInsightsNotebookUri
+        ModelDataUrl: !Sub 'S3://${ArtifactsBucketName}/ct-model.tar.gz'
+      ExecutionRoleArn: !GetAtt IPInsightsExecutionRole.Arn
+  WAFIPInsightsEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
     Properties:
       ProductionVariants:
         - InitialInstanceCount: 1
           InitialVariantWeight: 1.0
           InstanceType: ml.m5.large
-          ModelName: !GetAtt IPInsightsModel.ModelName
-          VariantName: !GetAtt IPInsightsModel.ModelName
-  IPInsightsEndpoint:
+          ModelName: !GetAtt WAFIPInsightsModel.ModelName
+          VariantName: !GetAtt WAFIPInsightsModel.ModelName
+  CTIPInsightsEndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      ProductionVariants:
+        - InitialInstanceCount: 1
+          InitialVariantWeight: 1.0
+          InstanceType: ml.m5.large
+          ModelName: !GetAtt CTIPInsightsModel.ModelName
+          VariantName: !GetAtt CTIPInsightsModel.ModelName
+  WAFIPInsightsEndpoint:
     Type: AWS::SageMaker::Endpoint
     Properties:
-      EndpointName: SyntheticSun-IPInsights-Endpt
-      EndpointConfigName: !GetAtt IPInsightsEndpointConfig.EndpointConfigName
+      EndpointName: SyntheticSun-WAF-IPInsights-Endpt
+      EndpointConfigName: !GetAtt WAFIPInsightsEndpointConfig.EndpointConfigName
+  CTIPInsightsEndpoint:
+    Type: AWS::SageMaker::Endpoint
+    Properties:
+      EndpointName: SyntheticSun-CT-IPInsights-Endpt
+      EndpointConfigName: !GetAtt CTIPInsightsEndpointConfig.EndpointConfigName
   IPInsightsExecutionRole: 
     Type: AWS::IAM::Role
-    Properties: 
+    Properties:
+      RoleName: SyntheticSun-SM-Model-Role
       AssumeRolePolicyDocument: 
         Version: 2012-10-17
         Statement: 
@@ -553,13 +570,24 @@ Resources:
       Path: /
       Policies: 
         - 
-          PolicyName: sagemakerpolicy
+          PolicyName: SynthticSun-SM-Model-Policy
           PolicyDocument: 
             Version: 2012-10-17
             Statement: 
               - 
                 Effect: Allow
-                Action: '*'
+                Action:
+                  - cloudwatch:PutMetricData
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogGroup
+                  - logs:DescribeLogStreams
+                  - kms:Decrypt
+                  - s3:GetObject
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
                 Resource: '*'
   SecHubStreamLoggingBucket:
     Type: AWS::S3::Bucket

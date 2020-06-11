@@ -9,25 +9,25 @@ SyntheticSun is a defense-in-depth security automation and monitoring framework 
 <sub>- **Norma Jean, 2016**</sub>
 
 ## Synopsis
--	Uses event- and time-based serverless automation (e.g. AWS CodeBuild, AWS Lambda) to collect, normalize, enrich, and correlate security telemetry in Kibana
--	Leverage threat intelligence, geolocation data, open-source intelligence, and AWS APIs to further enrich security telemetry and identify potential threats
--	IP Insights, an unsupervised machine learning (ML) algorithm from Amazon Sagemaker, identifies anomalies based on IP address and entity pairs
--	Dynamically update AWS WAFv2 IP Sets and Amazon GuardDuty threat intel sets to bolster protection of your account and infrastructure against known threats
+- Uses event- and time-based serverless automation (e.g. AWS CodeBuild, AWS Lambda) to collect, normalize, enrich, and correlate security telemetry in Kibana
+- Leverages threat intelligence, geolocation data, open-source intelligence, machine learning (ML) backed anomaly detection and AWS APIs to further enrich security telemetry and identify potential threats
+- Leverage Random Cut Forests (RCF) and IP Insights unsupervised ML algorithms to identify anomalies in timeseries and IP-entity pair data, respectively. Serverless, container-orchestrated resources are provided to train and deploy new IP Insights endpoints at will.
+- Dynamically update AWS WAFv2 IP Sets and Amazon GuardDuty threat intel sets to bolster protection of your account and infrastructure against known threats 
 
 ## Description
-SyntheticSun is built around the usage of the Malware Information Sharing Platform (MISP) and Anomali's LIMO which are community driven threat intelligence platforms (TIPs) that provide various types of indicators of compromise (IoC). Normalized and de-duplicated threat intel is looked up against in near-real time to quickly identify known threats in various types of network traffic. To add dynamism to the identification of potential threats IP Insights models are deployed to find anoamlies (and potential threats therein) between the pairing of IP addresses and entities (such as IAM principal ID's, user-agents, etc.). The democratize the usage and fine-tuning of ML models within security teams utilities to train IP Insights models are provided as an add-on to the core solution.
+SyntheticSun is built around the usage of the Malware Information Sharing Platform (MISP) and Anomali's LIMO which are community driven threat intelligence platforms (TIPs) that provide various types of indicators of compromise (IoC). Normalized and de-duplicated threat intel is looked up against in near-real time to quickly identify known threats in various types of network traffic. To add dynamism to the identification of potential threats IP Insights models are deployed to find anoamlies (and potential threats therein) between the pairing of IP addresses and entities (such as IAM principal ID's, user-agents, etc.), native RCF detectors are also used in Elasticsearch to find anomalies in near real-time security telemetry as it is streamed into Kibana. To democratize the usage and fine-tuning of ML models within security teams, utilities to train IP Insights models are provided as an add-on to the core solution.
 
 To perform the both the orchestration and automation as well as extraction, transformation, and loading (ETL) of security telemetry into Kibana various AWS serverless technologies such as Lambda, DynamoDB, and CodeBuild are used. Serverless technologies such as these are used for their scalability, ease of use, relatively cheap costs versus heavy MapReduce or Glue ETL-based solutions. A majority of the solution is deployed via CloudFormation with helper scripts in Python and shell provided throughout the various Stages to promote adoption and the potential deployment in continuous integration pieplines.
 
 To make the "guts" of the solution as lean as possible basic Python libraries such as `requests`, `json`, `ipaddress`, `socket` and `re` to perform most of the extraction, transformation, and loading (ETL) into downstream services. All geolocation information is provided by [ip-api.com](https://ip-api.com/docs), it does not require an account or paid tiers and has a great API which includes throttling information in their response headers. A majority of the Elasticsearch and Kibana dependencies are also provided in code (indicies, mappings, visualizations, etc) to avoid manual configuration of either.
 
 ## Setting Up
-SyntheticSun is spread across three Stages due to the size of solution and the required dependencies. All architecture and installation instructions (and perhaps FAQs where needed) will live within their own Stage.
+SyntheticSun is spread across three Stages due to the size of solution and the required dependencies. All architecture and installation instructions (and FAQs where appropriate) will live within their own Stage. Add-ons modules (called an Appendix) are also provided to extend the functionality, they too have their own architecture and installation instructions localizzed.
 
 ### Before you start: Considerations for Production deployments
 SyntheticSun, by virtue of being something you found on GitHub, is a proof-of-concept and therefore I did not go the extra mile for the first release to absolutely harden everything. Provided you are reading this at a point in time where I have not made the necessary changes, consider the following before you deploy this solution into a production environment (or any environment with heightened security needs). I will put these items on a roadmap and update them as appropiate.
 
-1. Train your own IP Insights models using the examples provided in [Appendix A](https://github.com/jonrau1/SyntheticSun/tree/master/appendix-a-ipinsights), you should ideal deploy endpoints per data-type to ensure high fidelity and accuracy of identifying anomalies.
+1. Train your own IP Insights models using the examples provided in [Appendix A](https://github.com/jonrau1/SyntheticSun/tree/master/appendix-a-ipinsights). Using your own data, and continually retraining the model, will help accurize findings.
 2. Deploy your MISP server and Elasticsearch Service domain in a VPC to harden against internet-borne attacks. Consider using AWS' Client VPN, AWS Site-to-Site VPN, DirectConnect, Amazon Workspaces, AppStream 2.0 or (if you absolutely have to) a reverse-proxy to access the MISP console and Kibana within a VPC.
 3. Consider using Cognito for AuthN into Kibana. Go a step further an federate your User Pool with your corporate IdP.
 4. Consider baking your own AMI for MISP or use Fargate to host it. I would also consider pre-baking Suricata and the Amazon CloudWatch Agent into future builds to help scale deployments of agents and HIDPS across your estate.
@@ -42,6 +42,7 @@ SyntheticSun, by virtue of being something you found on GitHub, is a proof-of-co
 **[Stage 1 starts here](https://github.com/jonrau1/SyntheticSun/tree/master/readme-stage1)**
 
 ## FAQ
+
 #### 1. Why should I use this solution?
 SyntheticSun is an easy way to start using cyber threat intelligence and machine learning for your edge protection security use cases on the AWS Cloud without having to invest in one or more commercial tools or a data scientist for your security team (you should actually do the latter). This solution, after initial configuration, is fully automated allowing you to identify and respond to threats at machine speed. Finally, this solution provides basic visualizations for your incident response team to use for threat response, such as allowed inbound or outbound connections or DNS queries to / from IP addresses or domains deemed to be malicious. The core of the solution relies on very lightweight automation and data engineering pipelines, which theoretically, can be reused for other purposes where multi-stage normalization and enrichment or scheduled fast-paced batch jobs are needed.
 
