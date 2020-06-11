@@ -101,6 +101,8 @@ Resources:
       Rules:
         - Name: AWSManagedRulesCommonRuleSet
           Priority: 0
+          OverrideAction:
+            None: {}
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -112,6 +114,8 @@ Resources:
               ExcludedRules: []
         - Name: AWSManagedRulesKnownBadInputsRuleSet
           Priority: 1
+          OverrideAction:
+            None: {}
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -123,6 +127,8 @@ Resources:
               ExcludedRules: []
         - Name: AWSManagedRulesAmazonIpReputationList
           Priority: 2
+          OverrideAction:
+            None: {}
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -134,6 +140,8 @@ Resources:
               ExcludedRules: []
         - Name: AWSManagedRulesAnonymousIpList
           Priority: 3
+          OverrideAction:
+            None: {}
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -162,7 +170,7 @@ Resources:
   WAFLoggingBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${WAFv2WebACL}-waf-logs-${AWS::Region}-${AWS::AccountId}'
+      BucketName: !Sub 'syntheticsun-waf-logs-${AWS::AccountId}'
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
