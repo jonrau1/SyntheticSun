@@ -3,13 +3,14 @@ import boto3
 import json
 from requests_aws4auth import AWS4Auth
 import requests
+import time
 # create boto3 clients
 ec2 = boto3.client('ec2')
 sts = boto3.client('sts')
 esearch = boto3.client('es')
 wafv2 = boto3.client('wafv2')
 ssm = boto3.client('ssm')
-cwlogs = boto3.client('logs')
+iam = boto3.client('iam')
 awsAccountId = sts.get_caller_identity()['Account']
 # set command line arguments
 awsRegion = sys.argv[1]
@@ -18,6 +19,7 @@ trustedCidr = sys.argv[3]
 wafArn = sys.argv[4]
 firehoseArn = sys.argv[5]
 esHostUrl = sys.argv[6]
+mispInstanceId = sys.argv[7]
 
 def endpoint_attachment():
     # get route tables
@@ -292,15 +294,75 @@ def es_waf_index_creation():
     r = requests.put(url, auth=awsauth, json=pload, headers=headers)
     print(r.json())
     
-def suricata_cloudwatch_logs():
+def instance_profile():
+    trustPolicy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+            "Effect": "Allow",
+            "Principal": { "Service": "ec2.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+            }
+        ]
+    }
+    ec2Trust = json.dumps(trustPolicy)
+
     try:
-        response = cwlogs.create_log_group(logGroupName='Suricata-DNS-Logs')
-        print(response)
+        response = iam.create_role(
+            RoleName='SyntheticSunMISPInstanceProfile',
+            AssumeRolePolicyDocument=ec2Trust,
+            Description='Role for SyntheticSun MISP instance - created by script',
+            MaxSessionDuration=3600
+        )
+        print('Role created')
+    except Exception as e:
+        print(e)
+        raise
+
+    # wait for role to propgate
+    time.sleep(5)
+    try:
+        response = iam.attach_role_policy(
+            RoleName='SyntheticSunMISPInstanceProfile',
+            PolicyArn='arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        )
     except Exception as e:
         print(e)
         raise
     try:
-        response = cwlogs.create_log_group(logGroupName='Suricata-Not-DNS-Logs')
+        response = iam.attach_role_policy(
+            RoleName='SyntheticSunMISPInstanceProfile',
+            PolicyArn='arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy'
+        )
+    except Exception as e:
+        print(e)
+        raise
+    print('Policies attached')
+    # wait for role to propgate
+    time.sleep(5)
+
+    try:
+        response = iam.create_instance_profile(InstanceProfileName='SyntheticSunMISPInstanceProfile')
+    except Exception as e:
+        print(e)
+        raise
+    time.sleep(5)
+    try:
+        response = iam.add_role_to_instance_profile(
+            InstanceProfileName='SyntheticSunMISPInstanceProfile',
+            RoleName='SyntheticSunMISPInstanceProfile'
+        )
+    except Exception as e:
+        print(e)
+        raise
+    print('instance profile created')
+    time.sleep(6)
+
+    try:
+        response = ec2.associate_iam_instance_profile(
+            IamInstanceProfile={'Name': 'SyntheticSunMISPInstanceProfile'},
+            InstanceId=mispInstanceId
+        )
         print(response)
     except Exception as e:
         print(e)
@@ -314,6 +376,6 @@ def im_helping():
     es_alb_index_creation()
     es_vpc_index_creation()
     es_waf_index_creation()
-    suricata_cloudwatch_logs()
+    instance_profile()
 
 im_helping()

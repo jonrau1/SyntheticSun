@@ -60,23 +60,6 @@ Parameters:
       - r5.large.elasticsearch
       - r5.xlarge.elasticsearch
 Resources:
-  SyntheticSunES:
-    Type: AWS::Elasticsearch::Domain
-    Properties:
-      DomainName: syntheticsun-es
-      ElasticsearchClusterConfig:
-        DedicatedMasterEnabled: true
-        InstanceCount: 2
-        InstanceType: !Ref ESDataNodeInstanceType
-        DedicatedMasterType: !Ref ESMasterNodeInstanceType
-        DedicatedMasterCount: 3
-      ElasticsearchVersion: 7.4
-      EncryptionAtRestOptions:
-        Enabled: true
-      EBSOptions:
-        EBSEnabled: true
-        VolumeSize: 25
-        VolumeType: gp2
   ThreatIntelWAFv2IPBlacklist:
     Type: AWS::WAFv2::IPSet
     Properties: 
@@ -232,7 +215,8 @@ Resources:
                 - - 'arn:aws:s3:::'
                   - !Ref WAFLoggingBucket
                   - '*'
-      Roles: !Ref WAFLoggingDeliveryStreamRole
+      Roles: 
+        - !Ref WAFLoggingDeliveryStreamRole
   MISPSecGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -253,37 +237,10 @@ Resources:
         FromPort: 0
         ToPort: 0
         CidrIp: 0.0.0.0/0
-  MISPInstanceProfileRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: SyntheticSun-MISP-InstanceProfile
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Sid: ec2trust
-            Effect: Allow
-            Principal:
-              Service: ec2.amazonaws.com
-            Action: sts:AssumeRole
-  MISPInstanceProfileRolePolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: SyntheticSun-MISP-InstanceProfile-Policy
-      ManagedPolicyArns: 
-        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-        - arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy
-      Roles: !Ref MISPInstanceProfileRole
-  MISPInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties: 
-      InstanceProfileName: SyntheticSun-MISP-Profile
-      Roles: 
-        - !Ref MISPInstanceProfileRole
   MISPInstance:
     Type: AWS::EC2::Instance
     Properties: 
       DisableApiTermination: true
-      IamInstanceProfile: !GetAtt MISPInstanceProfile.Arn
       ImageId: !Ref MISPAmiId
       InstanceType: !Ref MISPInstanceTypeParameter
       SecurityGroupIds: 
@@ -306,8 +263,30 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
-Outputs:
-  BucketName:
-    Value: !Ref SyntheticSunArtifacts
-  FirehoseName:
-    Value: !Ref WAFLoggingDeliveryStream
+  SyntheticSunES:
+    Type: AWS::Elasticsearch::Domain
+    Properties:
+      DomainName: syntheticsun-es
+      ElasticsearchClusterConfig:
+        DedicatedMasterEnabled: true
+        InstanceCount: 2
+        InstanceType: !Ref ESDataNodeInstanceType
+        DedicatedMasterType: !Ref ESMasterNodeInstanceType
+        DedicatedMasterCount: 3
+      ElasticsearchVersion: 7.4
+      EncryptionAtRestOptions:
+        Enabled: true
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 25
+        VolumeType: gp2
+  SuricataDNSLogGrp: 
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: Suricata-DNS-Logs 
+      RetentionInDays: 7
+  SuricataNotDNSLogGrp: 
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: Suricata-Not-DNS-Logs 
+      RetentionInDays: 7

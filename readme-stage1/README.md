@@ -29,13 +29,18 @@ aws lambda publish-layer-version \
     --compatible-runtimes python3.7 python3.8
 ```
 
-4. Execute a final helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. The below 6 values must be provided in the order they are given seperated by spaces: `cd - && python3 gewalthaufen.py <values 1-6>`
-    1) AWS region, e.g. us-east-1
-    2) VPC ID you selected as the parameter value when deploying cloudformation. Must be in the format of `vpc-123456`
-    3) Trusted CIDR range for IP-based conditional access into Kibana, e.g. 192.168.1.2/32
-    4) WAF ARN from the CloudFormation template
-    5) Firehose ARN from the CloudFormation template
-    6) Elasticsearch Service domain endpoint, must begin with `https://`. Do **NOT** use the Kibana endpoint
+4. Execute another helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. The below 7 values must be provided in the order they are given. **Note:** For the Elasticsearch endpoint URL do *not* use the Kibana one and remove any trailing slash.
+```bash
+cd -
+python3 gewalthaufen.py \
+    my-aws-region (us-east-1) \
+    vpc-id (vpc-123456) \
+    trusted-cidr (192.168.1.1/32) \
+    waf-arn (from CFN) \
+    firehose-arn (from CFN) \
+    elasticsearch-endpoint (e.g. https://my-domain-elasticsearch.com) \
+    misp-instance-id (i-123456789012)
+```
 
 5. Start an AWS Systems Manager Session with the MISP instance. Refer [here](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) for information on installating the Session Manager Plugin for the AWS CLI.
 `aws ssm start-session --target <misp-ec2-instance-id>`

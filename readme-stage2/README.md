@@ -16,7 +16,7 @@ Below is the high level view of the four different build automation jobs that ru
 
 ![SyntheticSun Build Automation Architecture](https://github.com/jonrau1/SyntheticSun/blob/master/img/syntheticsun-buildautomation-diagram.jpg)
 ##### LIMO Automations
-1. CodeBuild uses various Python libaries to parse IoC's from [Anomali's LIMO feed](https://www.anomali.com/community/limo)by collections. IoCs are returned in [STIX](https://stixproject.github.io/about/) XML.
+1. CodeBuild uses various Python libaries to parse IoC's from select Collections in [Anomali's LIMO feed](https://www.anomali.com/community/limo). IoCs are returned in [STIX](https://stixproject.github.io/about/) XML.
 2. STIX XML is converted to JSON, parsed and normalized before being written into DynamoDB. This project runs every 4 hours.
 ##### MISP Automations
 1. [MISP](https://www.misp-project.org/) continually pulls and publishes events from a variety of public CTI feeds. Native jobs are used to schedule the pull and refresh of feeds and corresponding events.
