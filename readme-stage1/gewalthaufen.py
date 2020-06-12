@@ -302,7 +302,7 @@ def instance_profile():
         raise
 
 def elasticsearch_policy_attachment():
-    rawPolicy = policy = {
+    rawPolicy = {
         'Version': '2012-10-17',
         'Statement': [
             {
