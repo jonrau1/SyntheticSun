@@ -15,11 +15,10 @@ awsAccountId = sts.get_caller_identity()['Account']
 # set command line arguments
 awsRegion = sys.argv[1]
 vpcId = sys.argv[2]
-trustedCidr = sys.argv[3]
-wafArn = sys.argv[4]
-firehoseArn = sys.argv[5]
-esHostUrl = sys.argv[6]
-mispInstanceId = sys.argv[7]
+wafArn = sys.argv[3]
+firehoseArn = sys.argv[4]
+esHostUrl = sys.argv[5]
+mispInstanceId = sys.argv[6]
 
 def endpoint_attachment():
     # get route tables
@@ -301,73 +300,6 @@ def instance_profile():
         print(e)
         raise
 
-def elasticsearch_policy_attachment():
-    rawPolicy = {
-        'Version': '2012-10-17',
-        'Statement': [
-            {
-            'Action': [
-                'es:ESHttp*'
-            ],
-            'Effect': 'Allow',
-            'Principal': {'AWS': ['arn:aws:iam::' + awsAccountId + ':role/CTLogParserLambdaExecRole']},
-            'Resource':'arn:aws:es:' + awsRegion + ':' + awsAccountId + ':domain/syntheticsun-es/*',
-            },
-            {
-            'Action': [
-                'es:ESHttp*'
-            ],
-            'Effect': 'Allow',
-            'Principal': {'AWS': ['arn:aws:iam::' + awsAccountId + ':role/ALBLogParserLambdaExecRole']},
-            'Resource':'arn:aws:es:' + awsRegion + ':' + awsAccountId + ':domain/syntheticsun-es/*',
-            },
-            {
-            'Action': [
-                'es:ESHttp*'
-            ],
-            'Effect': 'Allow',
-            'Principal': {'AWS': ['arn:aws:iam::' + awsAccountId + ':role/FlowLogParserLambdaExecRole']},
-            'Resource':'arn:aws:es:' + awsRegion + ':' + awsAccountId + ':domain/syntheticsun-es/*',
-            },
-            {
-            'Action': [
-                'es:ESHttp*'
-            ],
-            'Effect': 'Allow',
-            'Principal': {'AWS': ['arn:aws:iam::' + awsAccountId + ':role/WAFLogParserLambdaExecRolePolicy']},
-            'Resource':'arn:aws:es:' + awsRegion + ':' + awsAccountId + ':domain/syntheticsun-es/*',
-            },
-            {
-            'Action': [
-                'es:ESHttp*'
-            ],
-            'Effect': 'Allow',
-            'Principal': {'AWS': ['arn:aws:iam::' + awsAccountId + ':role/SuricataParserLambdaExecRole']},
-            'Resource':'arn:aws:es:' + awsRegion + ':' + awsAccountId + ':domain/syntheticsun-es/*',
-            },
-            {
-            'Action': [
-                'es:ESHttp*'
-            ],
-            'Effect': 'Allow',
-            'Principal': {'AWS':'*'},
-            'Resource':'arn:aws:es:' + awsRegion + ':' + awsAccountId + ':domain/syntheticsun-es/*',
-            'Condition': {
-                'IpAddress': {
-                'aws:SourceIp': trustedCidr
-                }
-            }
-            }
-        ]
-    }
-    accessPolicy = json.dumps(rawPolicy)
-    try:
-        response = esearch.update_elasticsearch_domain_config(DomainName='syntheticsun-es',AccessPolicies=accessPolicy)
-        print(response)
-    except Exception as e:
-        print(e)
-        raise
-
 def im_helping():
     endpoint_attachment()
     waf_logging()
@@ -376,6 +308,5 @@ def im_helping():
     es_vpc_index_creation()
     es_waf_index_creation()
     instance_profile()
-    elasticsearch_policy_attachment()
 
 im_helping()

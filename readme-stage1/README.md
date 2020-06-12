@@ -35,7 +35,6 @@ cd -
 python3 gewalthaufen.py \
     my-aws-region (us-east-1) \
     vpc-id (vpc-123456) \
-    trusted-cidr (192.168.1.1/32) \
     waf-arn (from CFN e.g. arn:aws:wafv2:us-east-1:12345678:regional/webacl/SyntheticSun-WACL/waf-id-goes-here) \
     firehose-arn (from CFN e.g. arn:aws:firehose:us-east-1:12345678:deliverystream/aws-waf-logs-syntheticsun) \
     elasticsearch-endpoint (e.g. https://my-domain-elasticsearch.com) \
