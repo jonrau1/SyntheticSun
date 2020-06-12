@@ -57,7 +57,6 @@ def endpoint_attachment():
         print(e)
         raise
 
-            'Action': [
 def waf_logging():
     try:
         response = wafv2.put_logging_configuration(LoggingConfiguration={'ResourceArn': wafArn,'LogDestinationConfigs': [firehoseArn]})
