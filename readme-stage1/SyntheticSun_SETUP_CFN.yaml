@@ -4,6 +4,12 @@ Parameters:
   ApplicationLoadBalancerArn:
     Type: String
     Description: The ARN of the Application Load Balancer to attach the SyntheticSun WAF to
+  Ec2KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Key pair for EC2 instance for SSH access
+  MISPSecGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security Group for MISP instance. Must allow HTTPS traffic and optionally SSH access from a trusted CIDR
   MISPAmiId:
     Type: AWS::EC2::Image::Id
     Description: The AMI ID for MISP-Cloud in us-east-1. Change to one applicable for your Region, AMIs are availabe at MISP/misp-cloud GitHub
@@ -217,35 +223,21 @@ Resources:
                   - '*'
       Roles: 
         - !Ref WAFLoggingDeliveryStreamRole
-  MISPSecGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allows HTTPS traffic to the MISP Instance - Managed by CloudFormation
-      GroupName: SyntheticSun-MISP-HTTPS-SG
-      VpcId: !Ref SGVpcId
-      Tags:
-        -
-          Key: Name
-          Value: SyntheticSun-MISP-HTTPS-SG
-      SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 443
-        ToPort: 443
-        CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
-      - IpProtocol: tcp
-        FromPort: 0
-        ToPort: 0
-        CidrIp: 0.0.0.0/0
   MISPInstance:
     Type: AWS::EC2::Instance
     Properties: 
       DisableApiTermination: true
       ImageId: !Ref MISPAmiId
+      KeyName: !Ref Ec2KeyPair
       InstanceType: !Ref MISPInstanceTypeParameter
-      SecurityGroupIds: 
-        - !GetAtt MISPSecGroup.GroupId
-      SubnetId: !Ref PublicSubnetId
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          SubnetId: 
+            !Ref PublicSubnetId
+          DeviceIndex: 0
+          GroupSet:
+            - !Ref MISPSecGroup
       Tags: 
         - 
           Key: Name

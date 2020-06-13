@@ -41,25 +41,29 @@ python3 gewalthaufen.py \
     misp-instance-id (i-123456789012)
 ```
 
-5. Start an AWS Systems Manager Session with the MISP instance. Refer [here](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) for information on installating the Session Manager Plugin for the AWS CLI.
-`aws ssm start-session --target <misp-ec2-instance-id>`
+5. Connect to your MISP instance via SSH. You can also try to use AWS Systems Manager Session Manager (`aws ssm start-session --target <misp-ec2-instance-id>`), however, the IAM role may not register the instance in time.
+
+**Note:** Refer [here](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) for information on installating the Session Manager Plugin for the AWS CLI if you go the Session Manager route.
 
 6. Execute the following commands to install Suricata. Replace the value of the S3 bucket for the artifacts bucket that was deployed by CloudFormation.
 ```bash
+cd ~
 sudo su
 add-apt-repository ppa:oisf/suricata-stable
 apt update
 apt upgrade -y
 apt install -y suricata
+apt install -y awscli
 cd /etc/suricata
 aws s3 cp s3://<artifact-bucket-name-here>/suricata.yaml .
 ```
 
-7. Check the adapter name by using `ifconfig`. If this value is anything other than `eth0` replace the value in `suricata.yaml` before moving onto the next step. To quickly find the existing value search for `eth0`, it is around [Line 423](https://github.com/jonrau1/SyntheticSun/blob/master/readme-stage1/artifacts/suricata.yaml#L423)
+7. Check the adapter name by using `ifconfig`. If this value is anything other than `ens5` replace the value in `suricata.yaml` before moving onto the next step. To quickly find the existing value search for `ens5`, it is around [Line 423](https://github.com/jonrau1/SyntheticSun/blob/master/readme-stage1/artifacts/suricata.yaml#L423)
 
 8. Execute the following commands to finalize configuration of Suricata and installation of the CloudWatch Logs Agent. **Note** the 2 instances of `exit` are correct in the script, the first leaves sudo and the second will stop your Session.
 ```bash
 suricata-update
+cd ~
 curl -o /root/amazon-cloudwatch-agent.deb https://s3.amazonaws.com/amazoncloudwatch-agent/debian/amd64/latest/amazon-cloudwatch-agent.deb
 dpkg -i -E /root/amazon-cloudwatch-agent.deb
 usermod -aG adm cwagent
@@ -82,6 +86,8 @@ aws ssm send-command \
     --region <AWS_REGION_HERE>
 ```
 
-This is the end of Stage 1 for SyntheticSun. Before moving onto Stage 2 confirm that Suricata logs are being published to CloudWatch by navigating to the CloudWatch Logs console and looking at either `Suricata-DNS-Logs` or `Suricata-Not-DNS-Logs` log groups. If logs are not being published verify that the CloudWatch Agent is running by using the `AmazonCloudWatch-ManageAgent` document in `status` mode and looking for Suricata publishing logs by navigating to `/var/logs/suricata` and verifying that both `eve-dns.json` and `eve-nsm.json` are created and streaming by using `tail -f`.
+This is the end of Stage 1 for SyntheticSun. Before moving onto Stage 2 confirm that Suricata logs are being published to CloudWatch by navigating to the CloudWatch Logs console and looking at either `Suricata-DNS-Logs` or `Suricata-Not-DNS-Logs` log groups. 
+
+If logs are not being published verify that the CloudWatch Agent is running by using the `AmazonCloudWatch-ManageAgent` Document in `status` mode and looking for Suricata publishing logs by navigating to `/var/logs/suricata` and verifying that both `eve-dns.json` and `eve-nsm.json` are created and streaming by using `tail -f`. If the `suricata-update` command was succesful you likely do not have the right network interface specified, repeat Step 7.
 
 **[Stage 2 starts here](https://github.com/jonrau1/SyntheticSun/tree/master/readme-stage2)**

@@ -33,7 +33,18 @@ def endpoint_attachment():
                     VpcEndpointType='Gateway',
                     VpcId=vpcId,
                     ServiceName='com.amazonaws.' + awsRegion + '.s3',
-                    RouteTableIds=[tableId]
+                    RouteTableIds=[tableId],
+                    TagSpecifications=[
+                        {
+                            'ResourceType': 'vpc-endpoint-service',
+                            'Tags': [
+                                {
+                                    'Key': 'Name',
+                                    'Value': 'SyntheticSun-' + vpcId + '-S3GW'
+                                }
+                            ]
+                        }
+                    ]
                 )
                 print(response)
             except Exception as e:
@@ -46,7 +57,18 @@ def endpoint_attachment():
                     VpcEndpointType='Gateway',
                     VpcId=vpcId,
                     ServiceName='com.amazonaws.' + awsRegion + '.dynamodb',
-                    RouteTableIds=[tableId]
+                    RouteTableIds=[tableId],
+                    TagSpecifications=[
+                        {
+                            'ResourceType': 'vpc-endpoint-service',
+                            'Tags': [
+                                {
+                                    'Key': 'Name',
+                                    'Value': 'SyntheticSun-' + vpcId + '-DDBGW'
+                                }
+                            ]
+                        }
+                    ]
                 )
                 print(response)
             except Exception as e:
