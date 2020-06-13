@@ -70,3 +70,8 @@ python3 es-policy.py \
 ```
 
 4. Log in and...
+
+## FAQ
+
+### 1. Why am I seeing so many anomalies identified by IP Insights?
+The most likely reason is you have not used Appendix A to train your own IP Insights models, or, those are all true positives and you're in the midst of an attack. What are you still doing here? Go verify!

@@ -76,10 +76,12 @@ Resources:
             Resource: '*'
           - Effect: Allow
             Action:
+              - ec2:DescribeInstances
               - guardduty:GetThreatIntelSet
               - guardduty:UpdateThreatIntelSet
               - wafv2:GetIPSet
               - wafv2:UpdateIPSet
+              - iam:PutRolePolicy
               - kms:Decrypt
               - ssm:GetParameter
               - ssm:GetParameters
@@ -161,18 +163,20 @@ Resources:
       Source:
         BuildSpec: misp-automations/buildspec.yaml
         Type: CODECOMMIT
+        Location: !GetAtt SyntheticSunCICDCodeCommit.CloneUrlHttp
+      SourceVersion: refs/heads/master
   MISPAutomationsCodeBuildEvent: 
     Type: AWS::Events::Rule
     Properties:
       Name: SyntheticSun-MISP-Automations-Rule
       Description: Runs SyntheticSun-MISP-Automations every 4 hours - Managed by CloudFormation
       ScheduleExpression: rate(4 hours)
-      RoleArn: !GetAtt CodeBuildEventRole.Arn
       State: ENABLED
       Targets: 
         - 
           Arn: !GetAtt MISPAutomationsCodeBuild.Arn
           Id: GDAutomationTrigger
+          RoleArn: !GetAtt CodeBuildEventRole.Arn
   LIMOAutomationsCodeBuild:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -185,7 +189,7 @@ Resources:
         PrivilegedMode: True
         Type: LINUX_CONTAINER
         EnvironmentVariables:
-        - Name: MISP_IP_IOC_DDB_TABLE
+        - Name: IP_IOC_DDB_TABLE
           Type: PLAINTEXT
           Value: !Ref IPIoCDDB
       LogsConfig:
@@ -196,18 +200,20 @@ Resources:
       Source:
         BuildSpec: limo-automations/buildspec.yaml
         Type: CODECOMMIT
+        Location: !GetAtt SyntheticSunCICDCodeCommit.CloneUrlHttp
+      SourceVersion: refs/heads/master
   LIMOAutomationsCodeBuildEvent: 
     Type: AWS::Events::Rule
     Properties:
       Name: SyntheticSun-LIMO-Automations-Rule
       Description: Runs SyntheticSun-LIMO-Automations every 4 hours - Managed by CloudFormation
       ScheduleExpression: rate(4 hours)
-      RoleArn: !GetAtt CodeBuildEventRole.Arn
       State: ENABLED
       Targets: 
         - 
           Arn: !GetAtt LIMOAutomationsCodeBuild.Arn
           Id: GDAutomationTrigger
+          RoleArn: !GetAtt CodeBuildEventRole.Arn
   WAFAutomationsCodeBuild:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -237,18 +243,20 @@ Resources:
       Source:
         BuildSpec: waf-cti-automations/buildspec.yaml
         Type: CODECOMMIT
+        Location: !GetAtt SyntheticSunCICDCodeCommit.CloneUrlHttp
+      SourceVersion: refs/heads/master
   WAFAutomationsCodeBuildEvent: 
     Type: AWS::Events::Rule
     Properties:
       Name: SyntheticSun-WAF-Automations-Rule
       Description: Runs SyntheticSun-WAF-Automations every 6 days - Managed by CloudFormation
       ScheduleExpression: rate(6 days)
-      RoleArn: !GetAtt CodeBuildEventRole.Arn
       State: ENABLED
       Targets: 
         - 
           Arn: !GetAtt WAFAutomationsCodeBuild.Arn
           Id: GDAutomationTrigger
+          RoleArn: !GetAtt CodeBuildEventRole.Arn
   GuardDutyAutomationsCodeBuild:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -287,18 +295,20 @@ Resources:
       Source:
         BuildSpec: guardduty-cti-automations/buildspec.yaml
         Type: CODECOMMIT
+        Location: !GetAtt SyntheticSunCICDCodeCommit.CloneUrlHttp
+      SourceVersion: refs/heads/master
   GuardDutyAutomationsCodeBuildEvent: 
     Type: AWS::Events::Rule
     Properties:
       Name: SyntheticSun-GuardDuty-Automations-Rule
       Description: Runs SyntheticSun-GuardDuty-Automations every 6 days - Managed by CloudFormation
       ScheduleExpression: rate(6 days)
-      RoleArn: !GetAtt CodeBuildEventRole.Arn
       State: ENABLED
       Targets: 
         - 
           Arn: !GetAtt GuardDutyAutomationsCodeBuild.Arn
           Id: GDAutomationTrigger
+          RoleArn: !GetAtt CodeBuildEventRole.Arn
   IPIoCDDB: 
     Type: AWS::DynamoDB::Table
     Properties: 

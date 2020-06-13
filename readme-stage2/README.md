@@ -35,7 +35,7 @@ Below is the high level view of the four different build automation jobs that ru
 ### Deployment instructions
 1. Log in to the MISP server deployed in Phase 1. Refer to the public IP address in the EC2 console, you will likely get an untrusted X.509 cert warning in your browser, the default login credentials are `admin@admin.test` and the password is `admin`. Refer to the [MISP-Cloud project](https://github.com/MISP/misp-cloud#credentials--access) in case this value or the AMI changes. **Note** if you have trouble reaching the sign-in page attempt to add `/users/login` to the end of the IP address / hostname.
 
-2. Change the password and optionally create a new admin user in MISP. If you are not prompted navigate to **Administration >> List Users** and edit the user by selecting the notebook icon as shown in the figure below.
+2. Change the password and optionally create a new admin user in MISP. If you are not immediately prompted to change your password navigate to **Administration >> List Users** and edit the user by selecting the notebook icon as shown in the figure below.
 ![MISP Edit User](https://github.com/jonrau1/SyntheticSun/blob/master/img/syntheticsun-misp-edituser.JPG)
 
 3. Navigate to **Event Actions >> Automation** and `reset` the Automation key as shown below. This will be the value we will provide to our CodeBuild projects to perform tag-based queries against the MISP API.
@@ -46,7 +46,7 @@ Below is the high level view of the four different build automation jobs that ru
 5. Navigate to **Event Actions >> Add Tag** and create tags for `DDB_IP_FEED` and `DDB_URL_FEED` as shown below. Ensure that the checkbox for **Exportable** is selected, you can optionally select your organization (if you configured it) under **Restrict tagging to org**, it will default to `ORGNAME`.
 ![MISP Add Tags](https://github.com/jonrau1/SyntheticSun/blob/master/img/syntheticsun-misp-addtag.JPG)
 
-**IMPORTANT NOTE:** The next steps should be repeated as many times as you want to add new threat intel feeds into MISP, at the minimum you will need one IP-based IOC feed and one URL/hostname-based IOC feed. Refer to the list below for recommended lists across URL/Domain and IP types.
+**IMPORTANT NOTE:** The next steps should be repeated as many times as you want to add new threat intel feeds into MISP, at the minimum you will need one IP-based IOC feed and one URL/hostname-based IOC feed. Refer to the list below for recommended lists across URL/hostname and IP types.
 ##### IP-based IOC Feeds
 - blockrules of rules.emergingthreats.net
 - IPs from High-Confidence DGA-Based C&Cs Actively Resolving feed
@@ -61,6 +61,8 @@ Below is the high level view of the four different build automation jobs that ru
 6. Navigate to **Sync Actions >> List Feeds**. Go through the list of default feeds in MISP, check the box at the far left of the list and at the top of the console select **Enable selected** as shown below.
 ![MISP Enable Feeds](https://github.com/jonrau1/SyntheticSun/blob/master/img/syntheticsun-misp-enablefeeds.JPG)
 
+**Note:** If there are not any other feeds select **Load default feed metadata** at the top left of the screen.
+
 7. After you are done enabling all of your desired feeds filter onto the enabled feeds by selecting **Enabled feeds** at the top of the console. For each enabled feed select **Fetch all events** at the far right which is presented as a downward pointing arrow within a dark circle as shown below. **Note:** if you picked an instance that is not memory-optimized this may take a while or crash your instance. You should delay the time between fetching events as this schedules a job onto MISP to do a pull into the backend DB.
 ![MISP Fetch Events](https://github.com/jonrau1/SyntheticSun/blob/master/img/syntheticsun-misp-fetchevents.JPG)
 
@@ -69,6 +71,8 @@ Below is the high level view of the four different build automation jobs that ru
 
 9. Finally, navigate to **Administration >> Scheduled Tasks**. Select the **Frequency (h)** row by double-clicking and enter a `4` for **fetch_feeds** and **pull_all** as shown below. This will allow MISP to continuously update the feeds to pull the latest events which will be published and available to DynamoDB.
 ![MISP Scheduled Tasks](https://github.com/jonrau1/SyntheticSun/blob/master/img/syntheticsun-misp-scheduledtasks.JPG)
+
+**Note:** You can get the ID of your GuardDuty detector by navigating to the GuardDuty console and selecting **Settings**.
 
 10. Deploy a CloudFormation stack from `SyntheticSun_BUILD_AUTOMATION_CFN.yaml`. This should not take too long, ensure that you are running this in your GuardDuty Master account if you are part of an AWS Organization. Ensure you run at least the MISP project after deployment before moving onto Stage 3.
 
@@ -91,3 +95,6 @@ The DynamoDB tables, as shown in the solution architecture, are loaded using tim
 
 ### 4. Will adding IoCs to the GuardDuty Threat Intel Set block these attempts?
 No, GuardDuty will generate a different finding type when traffic is seen going to or coming from a malicious IP in the threat intel set. These findings include `UnauthorizedAccess:EC2/MaliciousIPCaller.Custom`, `UnauthorizedAccess:IAMUser/MaliciousIPCaller.Custom` and `Recon:IAMUser/MaliciousIPCaller.Custom` and special attention should be paid to them. Anecdotally, due to current work-from-home situations, you may see a spike of these originating from TOR IP addresses due to workforce members using TOR itself or VPN services that over VPN-over-TOR such as NordVPN. More information on GuardDuty finding types can be [found here](https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-active.html).
+
+### 5. Why do I see a processing error tooltip for my threat intel sets in GuardDuty?
+Likely the TXT files for the threat intel sets were empty. This will happen if you don't run either the MISP or LIMO automation job before running the GuardDuty job. Additionally, it is unlikely you will have any entries in the anomalie threat intel set until you have ran Stage 3 for a prolonged period of time.
