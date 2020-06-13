@@ -51,8 +51,9 @@ for page in iterator:
                                     try:
                                         userAgent = str(headers['value'])
                                         newUserAgent = userAgent.replace('.','')
+                                        noCommaUserAgent = newUserAgent.replace(',','')
                                         wafDict = {
-                                            'userAgent': newUserAgent,
+                                            'userAgent': noCommaUserAgent,
                                             'ipaddress': clientIp
                                         }
                                         wafList.append(wafDict)

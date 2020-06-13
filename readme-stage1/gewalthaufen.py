@@ -225,6 +225,7 @@ def es_waf_index_creation():
         "mappings": {
             "properties": {
                 'date': { "type": "date"  },
+                'isAnomaly': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
                 'webAclArn': { "type": "text"  },
                 'terminatingRuleId': { "type": "text"  },
                 'action': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},

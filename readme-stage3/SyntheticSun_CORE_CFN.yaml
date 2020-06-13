@@ -13,7 +13,7 @@ Parameters:
     Default: arn:aws:lambda:us-east-1:770693421928:layer:Klayers-python38-requests:5
   Aws4AuthLambdaLayer:
     Type: String
-    Description: Python 3.7 or 3.8 Lambda Layer ARN for the AWS4Auth-Requests module created during Stage 1 of the readme
+    Description: Python 3.7 or 3.8 Lambda Layer ARN for the AWS4Auth-Requests module created during Stage 1 of the readme. Ensure you also copy the version number.
   CloudTrailBucketName:
     Type: String
     Description: Name of the S3 bucket where CloudTrail logs are sent to in your account
@@ -37,7 +37,7 @@ Parameters:
   SuricataNSMLogGrp:
     Type: String
     Description: The CloudWatch Logs Group that Suricata NSM logs are published to
-    Default: Suricata-NSM-Logs
+    Default: Suricata-Not-DNS-Logs
 Resources:
   CTLogParserLambdaExecRole:
     Type: AWS::IAM::Role
@@ -234,33 +234,25 @@ Resources:
             Action:
             - dynamodb:Query
             Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-IOC-Threat-Intel'
-  CWLSubscriptionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Sid: logstrust
-            Effect: Allow
-            Principal:
-              Service: logs.amazonaws.com
-            Action: sts:AssumeRole
-      RoleName: CWLSubscriptionRole
-      Policies:
-      - PolicyName: CWLSubscriptionRolePolicy
-        PolicyDocument:
-          Version: 2012-10-17
-          Statement:
           - Effect: Allow
             Action:
-            - lambda:InvokeFunction
+            - ec2:DescribeInstances
             Resource: '*'
   FlowLogCWLSubscription:
     Type: AWS::Logs::SubscriptionFilter
-    Properties: 
-      RoleArn: !GetAtt CWLSubscriptionRole.Arn
+    DependsOn: FlowLogLambdaPermission
+    Properties:
       LogGroupName: !Ref VPCFlowLogCWL
       DestinationArn: !GetAtt FlowLogParserLambda.Arn
+      FilterPattern: ""
+  FlowLogLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt FlowLogParserLambda.Arn
+      Principal: !Sub 'logs.${AWS::Region}.amazonaws.com'
+      SourceAccount: !Sub '${AWS::AccountId}'
+      SourceArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${VPCFlowLogCWL}:*'
   FlowLogParserLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -297,10 +289,15 @@ Resources:
       ManagedPolicyArns: 
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-      - PolicyName: WAFLogParserLambdaExecRolePolicy
+      - PolicyName: ALBLogParserLambdaExecRolePolicy
         PolicyDocument:
           Version: 2012-10-17
           Statement:
+          - Effect: Allow
+            Action:
+            - elasticloadbalancing:DescribeLoadBalancerAttributes
+            - elasticloadbalancing:DescribeLoadBalancers
+            Resource: '*'
           - Effect: Allow
             Action:
             - es:ESHttpPost
@@ -370,16 +367,34 @@ Resources:
       SourceArn: !Sub 'arn:aws:s3:::${ALBAccessLogS3Bucket}'
   SuricataDNSCWLSubscription:
     Type: AWS::Logs::SubscriptionFilter
+    DependsOn: SuricataDNSLambdaPermission
     Properties: 
-      RoleArn: !GetAtt CWLSubscriptionRole.Arn
       LogGroupName: !Ref SuricataDNSLogGrp
       DestinationArn: !GetAtt SuricataDNSParserLambda.Arn
+      FilterPattern: ""
+  SuricataDNSLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt SuricataDNSParserLambda.Arn
+      Principal: !Sub 'logs.${AWS::Region}.amazonaws.com'
+      SourceAccount: !Sub '${AWS::AccountId}'
+      SourceArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${SuricataDNSLogGrp}:*'
   SuricataNSMCWLSubscription:
     Type: AWS::Logs::SubscriptionFilter
+    DependsOn: SuricataNSMLambdaPermission
     Properties: 
-      RoleArn: !GetAtt CWLSubscriptionRole.Arn
       LogGroupName: !Ref SuricataNSMLogGrp
       DestinationArn: !GetAtt SuricataNSMParserLambda.Arn
+      FilterPattern: ""
+  SuricataNSMLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt SuricataNSMParserLambda.Arn
+      Principal: !Sub 'logs.${AWS::Region}.amazonaws.com'
+      SourceAccount: !Sub '${AWS::AccountId}'
+      SourceArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${SuricataNSMLogGrp}:*'
   SuricataDNSParserLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -506,6 +521,10 @@ Resources:
           Statement:
           - Effect: Allow
             Action:
+            - ec2:DescribeInstances
+            Resource: '*'
+          - Effect: Allow
+            Action:
             - es:ESHttpPost
             - es:ESHttpPut
             Resource: 
@@ -516,14 +535,14 @@ Resources:
     Properties:
       PrimaryContainer:
         Image: !Ref IpInsightsNotebookUri
-        ModelDataUrl: !Sub 'S3://${ArtifactsBucketName}/waf-model.tar.gz'
+        ModelDataUrl: !Sub 's3://${ArtifactsBucketName}/waf-model.tar.gz'
       ExecutionRoleArn: !GetAtt IPInsightsExecutionRole.Arn
   CTIPInsightsModel:
     Type: AWS::SageMaker::Model
     Properties:
       PrimaryContainer:
         Image: !Ref IpInsightsNotebookUri
-        ModelDataUrl: !Sub 'S3://${ArtifactsBucketName}/ct-model.tar.gz'
+        ModelDataUrl: !Sub 's3://${ArtifactsBucketName}/ct-model.tar.gz'
       ExecutionRoleArn: !GetAtt IPInsightsExecutionRole.Arn
   WAFIPInsightsEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
@@ -633,6 +652,7 @@ Resources:
           CloudWatchLoggingOptions: 
             Enabled: true
             LogGroupName: firehose/syntheticsun-sechub-to-es
+            LogStreamName: securityhub-es-logs
   SecHubStreamRole:
     Type: AWS::IAM::Role
     Properties:
@@ -725,9 +745,119 @@ Resources:
               - MEDIUM
               - HIGH
               - CRITICAL
-      RoleArn: !GetAtt SecHubToFirehoseEventRole.Arn
       State: ENABLED
       Targets: 
         - 
           Arn: !GetAtt SecHubStream.Arn
           Id: sechubtrigger
+          RoleArn: !GetAtt SecHubToFirehoseEventRole.Arn
+  LambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketNotification
+                  - s3:PutBucketNotification
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+  CustomResourceLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaIAMRole.Arn
+      Code:
+        ZipFile: |
+            from __future__ import print_function
+            import json
+            import boto3
+            import cfnresponse
+            SUCCESS = "SUCCESS"
+            FAILED = "FAILED"
+            print('Loading function')
+            s3 = boto3.resource('s3')  
+            def lambda_handler(event, context):
+                print("Received event: " + json.dumps(event, indent=2))
+                responseData={}
+                try:
+                    if event['RequestType'] == 'Delete':
+                        print("Request Type:",event['RequestType'])
+                        Bucket=event['ResourceProperties']['Bucket']
+                        delete_notification(Bucket)
+                        print("Sending response to custom resource after Delete")
+                    elif event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+                        print("Request Type:",event['RequestType'])
+                        LambdaArn=event['ResourceProperties']['LambdaArn']
+                        Bucket=event['ResourceProperties']['Bucket']
+                        add_notification(LambdaArn, Bucket)
+                        responseData={'Bucket':Bucket}
+                        print("Sending response to custom resource")
+                    responseStatus = 'SUCCESS'
+                except Exception as e:
+                    print('Failed to process:', e)
+                    responseStatus = 'FAILURE'
+                    responseData = {'Failure': 'Something bad happened.'}
+                cfnresponse.send(event, context, responseStatus, responseData)
+            def add_notification(LambdaArn, Bucket):
+                bucket_notification = s3.BucketNotification(Bucket)
+                response = bucket_notification.put(
+                  NotificationConfiguration={
+                    'LambdaFunctionConfigurations': [
+                      {
+                          'LambdaFunctionArn': LambdaArn,
+                          'Events': [
+                              's3:ObjectCreated:*'
+                          ]
+                      }
+                    ]
+                  }
+                )
+                print("Put request completed....")
+              
+            def delete_notification(Bucket):
+                bucket_notification = s3.BucketNotification(Bucket)
+                response = bucket_notification.put(
+                    NotificationConfiguration={}
+                )
+                print("Delete request completed....")
+      Runtime: python3.6
+      Timeout: 50
+  WAFLambdaTrigger:
+    Type: Custom::LambdaTrigger
+    DependsOn: WAFLogLambdaParserFunctionS3Event
+    Properties:
+      ServiceToken: !GetAtt WAFLogParserLambda.Arn
+      LambdaArn: !GetAtt WAFLogParserLambda.Arn
+      Bucket: !Ref WAFLogS3Bucket
+  CTLambdaTrigger:
+    Type: Custom::LambdaTrigger
+    DependsOn: CTLogLambdaParserFunctionS3Event
+    Properties:
+      ServiceToken: !GetAtt CTLogParserLambda.Arn
+      LambdaArn: !GetAtt CTLogParserLambda.Arn
+      Bucket: !Ref CloudTrailBucketName
+  ALBLambdaTrigger:
+    Type: Custom::LambdaTrigger
+    DependsOn: ALBLogLambdaParserFunctionS3Event
+    Properties:
+      ServiceToken: !GetAtt ALBLogLambdaParserFunction.Arn
+      LambdaArn: !GetAtt ALBLogLambdaParserFunction.Arn
+      Bucket: !Ref ALBAccessLogS3Bucket
