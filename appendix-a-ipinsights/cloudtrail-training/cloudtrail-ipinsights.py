@@ -143,4 +143,4 @@ predictor.accept = 'application/json; verbose=True'
 predictor.predict(inference_data)
 print('training has completed and the endpoint is deployed')
 
-# sagemaker.Session().delete_endpoint(predictor.endpoint)
+sagemaker.Session().delete_endpoint(predictor.endpoint)

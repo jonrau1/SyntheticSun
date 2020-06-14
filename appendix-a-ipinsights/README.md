@@ -50,7 +50,7 @@ docker tag ct-ipinsights-trainer:latest <ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com
 docker push <ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/ct-ipinsights-trainer:latest
 ```
 
-**Note**: The end of both Python scripts for the image builds contains a command (`sagemaker.Session().delete_endpoint(predictor.endpoint)`) that deletes the endpoint deployed at the end of the inference portion of training. Uncomment this line to delete the endpoint if you just wanted to have a newly trained model uploaded to S3 for future use.
+**Note**: The end of both Python scripts for the image builds contains a command (`sagemaker.Session().delete_endpoint(predictor.endpoint)`) that deletes the endpoint deployed at the end of the inference portion of training. Comment this line to keep the Endpoint deployed if you wanted to use it for immediate inference.
 
 4. Deploy a CloudFormation stack from `SyntheticSun_TRAINING_GROUNDS_CFN.yaml`. Keep the default value of the ECS Cluster as the Python script in the next step has it hardcoded. You will need the URI of both Docker images created in Step 3. If you only want to use one of the training images then edit the CloudFormation to remove the redundant Container Definition.
 
