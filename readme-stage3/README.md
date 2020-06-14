@@ -63,15 +63,27 @@ The second diagram details anomaly detection and threat intelligence enrichment 
 
 **Note 2:** You will likely need to manually add the respective Lambda function roles to the S3 bucket policies for your CloudTrail, WAF and/or ALB.
 
-3. After the stack finishes creating execute another Python script to generate a resource-based IAM policy for the Elasticsearch Service domain. This script uses the `sys.argv` method to create variables from values provided to the command line. The below 3 values must be provided in the order they are given. **Note:** For the Elasticsearch endpoint URL do *not* use the Kibana one and remove any trailing slash.
+**Note 3:** Manually download the `kibana-objects.ndjson` file in this directory to your workstation. You will need to manually upload it to Kibana that way.
+
+3. After the stack finishes creating execute another Python script to generate a resource-based IAM policy for the Elasticsearch Service domain. This script uses the `sys.argv` method to create variables from values provided to the command line. The below 2 values must be provided in the order they are given.
 ```bash
 python3 es-policy.py \
     my-aws-region (us-east-1) \
-    trusted-cidr (e.g. 192.168.1.1/32) \
-    elasticsearch-endpoint (e.g. https://my-domain-elasticsearch.com)
+    trusted-cidr (e.g. 192.168.1.1/32) 
 ```
 
-4. Log in and...
+**Note:** If you are unable to apply the policy due to being blocked set the Access Policy in the console to allow everyone to access and try again.
+
+4. After the Elasticsearch Service domain is back in an available state after applying the policy login to Kibana by selecting the **Kibana** endpoint URL in the Elasticsearch console.
+
+5. In Kibana select the **Management** menu, select **Saved Objects** and choose **Import** in the top-right. When prompted select the `kibana-objects.ndjson` you saved to your desktop. You may need to refresh and/or closer all browser sessions if you encounter redirect attempts to create any indicies.
+![Kibana Import Objects](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-importobjects.JPG)
+
+6. Navigate to **Dashboard**, select the **SyntheticSun Fusion Center** and change the time filter at the top right to **1 Year**. This will allow you to see all data for your indicies. If there is missing data check the logs of all Lambda functions and for the Security Hub Kinesis Firehose. All Lambda functions will publish immediately, but they may have some other transient errors. Security Hub will only send new events published after Step 2, check the Firehose logs and the S3 error file bucket if you suspect an issue.
+
+To add additional ML-based anomaly detection we will use [Random Cut Forest](https://docs.aws.amazon.com/sagemaker/latest/dg/randomcutforest.html) (RCF) detectors that are now included with Elasticsearch Service after being forked from the [Open Distro for Elasticsearch](https://opendistro.github.io/for-elasticsearch/blog/odfe-updates/2019/11/random-cut-forests/). RCF will allow us to identify anomalies in time-series data, which is a perfect fit for Elasticsearch, we will create two different detectors - one for ALB and one for VPC flow logs to detect possible Distribute Denial of Service (DDOS) threat vectors coming from anomalies in the amount of packets / bytes that are received. Finally, we will use another Open Distro feature called [Monitors](https://aws.amazon.com/blogs/big-data/setting-alerts-in-amazon-elasticsearch-service/) to receive alerts about this anomalous activity.
+
+7. 
 
 ## FAQ
 
