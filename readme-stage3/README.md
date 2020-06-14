@@ -80,10 +80,63 @@ python3 es-policy.py \
 ![Kibana Import Objects](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-importobjects.JPG)
 
 6. Navigate to **Dashboard**, select the **SyntheticSun Fusion Center** and change the time filter at the top right to **1 Year**. This will allow you to see all data for your indicies. If there is missing data check the logs of all Lambda functions and for the Security Hub Kinesis Firehose. All Lambda functions will publish immediately, but they may have some other transient errors. Security Hub will only send new events published after Step 2, check the Firehose logs and the S3 error file bucket if you suspect an issue.
+![Kibana Dashboard](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-dashboard.JPG)
 
 To add additional ML-based anomaly detection we will use [Random Cut Forest](https://docs.aws.amazon.com/sagemaker/latest/dg/randomcutforest.html) (RCF) detectors that are now included with Elasticsearch Service after being forked from the [Open Distro for Elasticsearch](https://opendistro.github.io/for-elasticsearch/blog/odfe-updates/2019/11/random-cut-forests/). RCF will allow us to identify anomalies in time-series data, which is a perfect fit for Elasticsearch, we will create two different detectors - one for ALB and one for VPC flow logs to detect possible Distribute Denial of Service (DDOS) threat vectors coming from anomalies in the amount of packets / bytes that are received. Finally, we will use another Open Distro feature called [Monitors](https://aws.amazon.com/blogs/big-data/setting-alerts-in-amazon-elasticsearch-service/) to receive alerts about this anomalous activity.
 
-7. 
+7. Navigate to the **Open Distro for Elasticsearch Anomaly Detection Kibana plugin** (yes, they actually named it that) and choose **Create detector**. Enter a **Name**,  **Description** and choose the `vpc-flows` index as shown below.
+![Kibana Create Detector](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-createdetector.JPG)
+
+8. Select a value for **Timestamp field**, scroll to the bottom and enter `3` for **Detector interval** and `1` for **Window delay** and choose **Create**
+![Kibana Create Detector](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-intervaldetector.JPG)
+
+9. On the next screen select **Add feature**. Enter a **Name** (i.e. `FlowLog-Pckts`) and select **Custom expression** from the **Find anomalies based on** dropdown menu. Enter in the below JSON blob, scroll to the bottom, select **Save and start detector** and select **Confirm** at the next pop up.
+```json
+{
+    "aggregation_name": {
+        "sum": {
+            "field": "packets"
+        }
+    }
+}
+```
+
+**Important note:** If you do not have at least 500 data points you will generate warning message when selecting **Preview anomalies**. Even with 500 data points, the RCF plugin will take a 50:1 sampling which can lead to a skewed visual. Finally, it can take a signifigant amount of time for the detector to initialize and begin to deliver anomaly and confidence scores depending on the existing data points in your index and how many events per second (EPS) is generated.
+
+10. Repeat Stpes 7 - 9 for ALB. When adding **Features** choose the `receivedBytes` value if available. If not, select **Custom expression** and enter in the below.
+```json
+{
+    "aggregation_name": {
+        "sum": {
+            "field": "receivedBytes"
+        }
+    }
+}
+```
+
+11. (**Note:** skip this step if you'll use Slack, Chime or a custom webhook which are native to Elasticsearch Monitors). Execute the following script to create two SNS topics and an IAM role to allow Elasticsearch to alert your topic for VPC and ALB anomaly detections: `python3 monitors.py`.
+
+**Note:** Repeat Steps 12 - 15 for each detector you create
+
+12. Navigate to **Alerting**, select the **Destinations** tab and choose **Add destination**. Enter a **Name**, choose **Amazon SNS** and enter in the ARN for the IAM Role and the SNS topic for that particular destination as shown below. You can reuse the same IAM Role for subsequent SNS destinations.
+![Kibana Create Monitor Destination](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-monitordest.JPG)
+
+13. Select the **Monitor** tab and choose **Create monitor**. Enter a **Name**, under **Method of definition** choose **Define using anomaly detector** and select one of your detectors. Optionally customize the **Monitor schedule** and select **Create** as shown below.
+![Kibana Configure Monitor](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-configuremonitor.JPG)
+
+14. On the next screen enter a **Trigger name** (e.g. `VPC-RCF-Alerts`) and optionally change the values for **Severity level**, **Anomaly grade threshold** and/or **Anomaly confidence threshold**. By default these values are set to `1`, `0.7` and `0.7`, respectively. Scroll to the bottom and enter another **Name**, choose your SNS topic for **Destination** and customize your **Message subject** and **Message**. You can enter in the below `Mustache` example to add result information to the message.
+```yaml
+Monitor {{ctx.monitor.name}} just entered alert status. Please investigate the issue.
+- Trigger: {{ctx.trigger.name}}
+- Severity: {{ctx.trigger.severity}}
+- Period start: {{ctx.periodStart}}
+- Period end: {{ctx.periodEnd}}
+- Results: {{ctx.results.0}}
+```
+
+**Note:** For more information on the `Mustache` specification for Monitors refer [here](https://opendistro.github.io/for-elasticsearch-docs/docs/alerting/monitors/#available-variables).
+
+15. For information about using Lambda with SNS refer [here](https://docs.aws.amazon.com/sns/latest/dg/sns-lambda-as-subscriber.html). You can publish to further downstream tools such as Jira, PagerDuty, ServiceNow, Azure DevOps Boards or Microsoft Teams. For examples on the aforementioned destinations refer to the [add-on modules](https://github.com/jonrau1/ElectricEye#add-on-modules) of ElectricEye.
 
 ## FAQ
 
