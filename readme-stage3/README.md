@@ -79,9 +79,19 @@ python3 es-policy.py \
 
 **Note:** If you are unable to apply the policy due to being blocked set the Access Policy in the console to allow everyone to access and try again.
 
-4. After the Elasticsearch Service domain is back in an available state after applying the policy login to Kibana by selecting the **Kibana** endpoint URL in the Elasticsearch console.
+4. Execute another script to add Bucket Events to the CloudTrail, ALB and WAF log buckets as well as configure the API Gateway API to enable logging in the correct format. The values below must be provided in the order they are given. **Note:** this script will likely fail if you buckets are not all in the same home region.
+```bash
+python3 tercio.py \
+    my-aws-region (us-east-1) \
+    cloudtrail-bucket-name \
+    alb-bucket-name \
+    waf-bucket-name \
+    api-id (e.g. 67dfghjjsb)
+```
 
-5. In Kibana select the **Management** menu, select **Saved Objects** and choose **Import** in the top-right. When prompted select the `kibana-objects.ndjson` you saved to your desktop. You may need to refresh and/or closer all browser sessions if you encounter redirect attempts to create any indicies.
+**Note:** If any of the steps fail you will have to execute them manually.
+
+5. Login to Kibana by selecting the **Kibana** endpoint URL in the Elasticsearch console. In Kibana select the **Management** menu, select **Saved Objects** and choose **Import** in the top-right. When prompted select the `kibana-objects.ndjson` you saved to your desktop. You may need to refresh and/or closer all browser sessions if you encounter redirect attempts to create any indicies.
 ![Kibana Import Objects](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-importobjects.JPG)
 
 6. Navigate to **Dashboard**, select the **SyntheticSun Fusion Center** and change the time filter at the top right to **1 Year**. This will allow you to see all data for your indicies. If there is missing data check the logs of all Lambda functions and for the Security Hub Kinesis Firehose. All Lambda functions will publish immediately, but they may have some other transient errors. Security Hub will only send new events published after Step 2, check the Firehose logs and the S3 error file bucket if you suspect an issue.
@@ -146,5 +156,31 @@ Monitor {{ctx.monitor.name}} just entered alert status. Please investigate the i
 
 ## FAQ
 
-### 1. Why am I seeing so many anomalies identified by IP Insights?
+### 1. You have a lot of scripts...why?
+I feel it is an inconvenience to deploy a ton of CFN stacks. I also ran into issues with some custom providers such as the AWS provided [example](https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-s3-notification-lambda/) to attach bucket policies which would lead to the stack hanging for hours. Some are also because CFN does not support what I want to do, and it's just easier. If you have a solve for it go ahead and open a PR with a new CFN.
+
+### 2. Why am I seeing so many anomalies identified by IP Insights?
 The most likely reason is you have not used Appendix A to train your own IP Insights models, or, those are all true positives and you're in the midst of an attack. What are you still doing here? Go verify!
+
+### 3. I really don't want to use Elasticsearch, how can I send these to Splunk?
+Create a Kinesis Data Firehose (KDF) with a Splunk destination. KDF has documentation [here](https://aws.amazon.com/kinesis/data-firehose/splunk/) for doing this, this varies if you have a self-managed Splunk or Splunk Cloud deployment, Splunk maintains its own [docs](https://docs.splunk.com/Documentation/AddOns/released/Firehose/ConfigureFirehose) as well. You will need to modify the code samples for all of the SyntheticSun Lambda functions to publish into the Firehose, some pseudocode is below, for Security Hub you just need to point the Firehose to Splunk.
+```python
+import boto3
+firehose = boto3.client('firehose')
+kdfStream = 'my-splunk-firehose'
+# ...code above...
+syntheticsunLogs = json.dumps(wafLogs)
+# publish logs to KDF
+try:
+    response = firehose.put_record(
+        DeliveryStreamName=kdfStream,
+        Record={'Data': syntheticsunLogs}
+    )
+    print(response)
+except Exception as e:
+    print(e)
+    raise
+```
+
+### 4. How can I send the logs to a self-managed Elasticsearch deployment?
+You will still need to use the `requests` library, but you can drop the `aws4auth` and instead set your `host` to whatever the IP address of your Elasticsearch cluster is e.g. `10.100.1.139:9000/index/_doc/1`.

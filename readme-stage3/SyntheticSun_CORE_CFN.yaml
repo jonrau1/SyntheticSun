@@ -47,6 +47,14 @@ Resources:
       Description: Lambda-backed API Gateway honeypot for SyntheticSun - Managed by CloudFormation
       ProtocolType: HTTP
       Target: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:SyntheticSun-APIGW-Honeypot/invocations'
+  HoneypotApiGwPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn: HoneypotHTTPApi
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt HoneypotLambda.Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HoneypotHTTPApi}/*/*/'
   HoneypotLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -159,6 +167,10 @@ Resources:
             Action:
             - dynamodb:Query
             Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/Domain-IOC-Threat-Intel'
+          - Effect: Allow
+            Action:
+            - sagemaker:InvokeEndpoint
+            Resource: !Ref WAFIPInsightsEndpoint
   CTLogParserLambdaExecRole:
     Type: AWS::IAM::Role
     Properties:
@@ -870,113 +882,3 @@ Resources:
           Arn: !GetAtt SecHubStream.Arn
           Id: sechubtrigger
           RoleArn: !GetAtt SecHubToFirehoseEventRole.Arn
-  LambdaIAMRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Policies:
-        - PolicyName: root
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetBucketNotification
-                  - s3:PutBucketNotification
-                Resource: '*'
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: arn:aws:logs:*:*:*
-  CustomResourceLambdaFunction:
-    Type: 'AWS::Lambda::Function'
-    Properties:
-      Handler: index.lambda_handler
-      Role: !GetAtt LambdaIAMRole.Arn
-      Code:
-        ZipFile: |
-            from __future__ import print_function
-            import json
-            import boto3
-            import cfnresponse
-            SUCCESS = "SUCCESS"
-            FAILED = "FAILED"
-            print('Loading function')
-            s3 = boto3.resource('s3')  
-            def lambda_handler(event, context):
-                print("Received event: " + json.dumps(event, indent=2))
-                responseData={}
-                try:
-                    if event['RequestType'] == 'Delete':
-                        print("Request Type:",event['RequestType'])
-                        Bucket=event['ResourceProperties']['Bucket']
-                        delete_notification(Bucket)
-                        print("Sending response to custom resource after Delete")
-                    elif event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
-                        print("Request Type:",event['RequestType'])
-                        LambdaArn=event['ResourceProperties']['LambdaArn']
-                        Bucket=event['ResourceProperties']['Bucket']
-                        add_notification(LambdaArn, Bucket)
-                        responseData={'Bucket':Bucket}
-                        print("Sending response to custom resource")
-                    responseStatus = 'SUCCESS'
-                except Exception as e:
-                    print('Failed to process:', e)
-                    responseStatus = 'FAILURE'
-                    responseData = {'Failure': 'Something bad happened.'}
-                cfnresponse.send(event, context, responseStatus, responseData)
-            def add_notification(LambdaArn, Bucket):
-                bucket_notification = s3.BucketNotification(Bucket)
-                response = bucket_notification.put(
-                  NotificationConfiguration={
-                    'LambdaFunctionConfigurations': [
-                      {
-                          'LambdaFunctionArn': LambdaArn,
-                          'Events': [
-                              's3:ObjectCreated:*'
-                          ]
-                      }
-                    ]
-                  }
-                )
-                print("Put request completed....")
-              
-            def delete_notification(Bucket):
-                bucket_notification = s3.BucketNotification(Bucket)
-                response = bucket_notification.put(
-                    NotificationConfiguration={}
-                )
-                print("Delete request completed....")
-      Runtime: python3.6
-      Timeout: 50
-  WAFLambdaTrigger:
-    Type: Custom::LambdaTrigger
-    DependsOn: WAFLogLambdaParserFunctionS3Event
-    Properties:
-      ServiceToken: !GetAtt WAFLogParserLambda.Arn
-      LambdaArn: !GetAtt WAFLogParserLambda.Arn
-      Bucket: !Ref WAFLogS3Bucket
-  CTLambdaTrigger:
-    Type: Custom::LambdaTrigger
-    DependsOn: CTLogLambdaParserFunctionS3Event
-    Properties:
-      ServiceToken: !GetAtt CTLogParserLambda.Arn
-      LambdaArn: !GetAtt CTLogParserLambda.Arn
-      Bucket: !Ref CloudTrailBucketName
-  ALBLambdaTrigger:
-    Type: Custom::LambdaTrigger
-    DependsOn: ALBLogLambdaParserFunctionS3Event
-    Properties:
-      ServiceToken: !GetAtt ALBLogLambdaParserFunction.Arn
-      LambdaArn: !GetAtt ALBLogLambdaParserFunction.Arn
-      Bucket: !Ref ALBAccessLogS3Bucket
