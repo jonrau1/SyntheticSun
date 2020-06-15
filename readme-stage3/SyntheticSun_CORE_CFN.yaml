@@ -41,11 +41,12 @@ Parameters:
 Resources:
   HoneypotHTTPApi:
     Type: AWS::ApiGatewayV2::Api
+    DependsOn: HoneypotLambda
     Properties:
       Name: SyntheticSun-Honeypot-APIGW
       Description: Lambda-backed API Gateway honeypot for SyntheticSun - Managed by CloudFormation
       ProtocolType: HTTP
-      Target: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:SyntheticSun-APIGW-Honeypot/invocations
+      Target: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:SyntheticSun-APIGW-Honeypot/invocations'
   HoneypotLambda:
     Type: AWS::Lambda::Function
     Properties:
