@@ -46,6 +46,7 @@ Resources:
       Name: SyntheticSun-Honeypot-APIGW
       Description: Lambda-backed API Gateway honeypot for SyntheticSun - Managed by CloudFormation
       ProtocolType: HTTP
+      RouteKey: ANY /
       Target: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:SyntheticSun-APIGW-Honeypot/invocations'
   HoneypotApiGwPermission:
     Type: AWS::Lambda::Permission
@@ -209,15 +210,8 @@ Resources:
             - s3:PutObject
             - s3:PutObjectAcl
             Resource:
-              - !Join 
-                - ''
-                - - 'arn:aws:s3:::'
-                  - !Ref CloudTrailBucketName
-              - !Join 
-                - ''
-                - - 'arn:aws:s3:::'
-                  - !Ref CloudTrailBucketName
-                  - '*'
+              - !Sub 'arn:aws:s3:::${CloudTrailBucketName}'
+              - !Sub 'arn:aws:s3:::${CloudTrailBucketName}/*'
           - Effect: Allow
             Action:
             - sagemaker:InvokeEndpoint
@@ -457,15 +451,8 @@ Resources:
             - s3:PutObject
             - s3:PutObjectAcl
             Resource:
-              - !Join 
-                - ''
-                - - 'arn:aws:s3:::'
-                  - !Ref ALBAccessLogS3Bucket
-              - !Join 
-                - ''
-                - - 'arn:aws:s3:::'
-                  - !Ref ALBAccessLogS3Bucket
-                  - '*'
+              - !Sub 'arn:aws:s3:::${ALBAccessLogS3Bucket}'
+              - !Sub 'arn:aws:s3:::${ALBAccessLogS3Bucket}/*'
   ALBLogLambdaParserFunction:
     Type: AWS::Lambda::Function
     Properties:

@@ -18,8 +18,8 @@ ctFunctionArn = 'arn:aws:lambda:' + awsRegion + ':' + awsAccountId + ':function:
 albFunctionArn = 'arn:aws:lambda:' + awsRegion + ':' + awsAccountId + ':function:SyntheticSun-ALBLogParserLambda'
 wafFunctionArn = 'arn:aws:lambda:' + awsRegion + ':' + awsAccountId + ':function:SyntheticSun-WAFLogParserLambda'
 apiLogsArn = 'arn:aws:logs:' + awsRegion + ':' + awsAccountId + ':log-group:APIGWLogGrp:*'
-# csv APIGW access logs
-logCsv = '$context.identity.sourceIp,$context.requestTimeEpoch,$context.httpMethod,$context.identity.userAgent,$context.domainName,$context.routeKey,$context.status,$context.responseLength,$context.requestId'
+# JSON APIGW access logs
+logCsv = '{ "requestId":"$context.requestId", "ip": "$context.identity.sourceIp", "requestTimeEpoch":"$context.requestTimeEpoch", "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "responseLength":"$context.responseLength", "domainName":"$context.domainName", "userAgent": "$context.identity.userAgent" }'
 
 def cloudtrail_event_attachment():
     try:

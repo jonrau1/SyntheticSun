@@ -139,10 +139,11 @@ def es_apigw_index_creation():
                 'date': { "type": "date"  },
                 'requestTimeEpoch': { "type": "integer"  },
                 'httpMethod': { "type": "text"  },
+                'protocol': { "type": "text"  },
                 'userAgent': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
                 'domainName': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
                 'routeKey': { "type": "text"  },
-                'status': { "type": "text"  },
+                'status': { "type": "integer"  },
                 'responseLength': { "type": "integer"  },
                 'requestId': { "type": "text"  },
                 'location': { "type": "geo_point" },
@@ -366,7 +367,7 @@ def im_helping():
     endpoint_attachment()
     waf_logging()
     cwa_ssm_parameter()
-    es_apigw_index_creation
+    es_apigw_index_creation()
     es_alb_index_creation()
     es_vpc_index_creation()
     es_waf_index_creation()

@@ -66,9 +66,23 @@ The second diagram details anomaly detection and threat intelligence enrichment 
 
 **Note 1:** If you trained new models in [Appendix A](https://github.com/jonrau1/SyntheticSun/tree/master/appendix-a-ipinsights) ensure that they are uploaded under the same names (e.g. `ct-model.tar.gz` or `waf-model.targ.gz`) they have in Stage 1. These values are hardcoded in the CFN template and will need to be manually changed if you named your model artifacts differently.
 
-**Note 2:** You will likely need to manually add the respective Lambda function roles to the S3 bucket policies for your CloudTrail, WAF and/or ALB.
+**Note 2:** You will likely need to manually add the respective Lambda function roles to the S3 bucket policies for your CloudTrail, WAF and/or ALB, for an example see below for a statement ID to insert into your existing bucket policy.
+```json
+{
+    "Sid": "cloudtrailallows",
+    "Effect": "Allow",
+    "Principal": {
+        "AWS": "arn:aws:iam::ACCTID:role/CTLogParserLambdaExecRole"
+    },
+    "Action": "s3:*",
+    "Resource": [
+        "arn:aws:s3:::bucket-name-here",
+        "arn:aws:s3:::bucket-name-here/*"
+    ]
+}
+```
 
-**Note 3:** Manually download the `kibana-objects.ndjson` file in this directory to your workstation. You will need to manually upload it to Kibana that way.
+**Note 3:** Manually download the `kibana-objects.ndjson` file in this directory to your workstation for manually uploading it to Kibana.
 
 3. After the stack finishes creating execute another Python script to generate a resource-based IAM policy for the Elasticsearch Service domain. This script uses the `sys.argv` method to create variables from values provided to the command line. The below 2 values must be provided in the order they are given.
 ```bash
@@ -162,6 +176,8 @@ I feel it is an inconvenience to deploy a ton of CFN stacks. I also ran into iss
 ### 2. Why am I seeing so many anomalies identified by IP Insights?
 The most likely reason is you have not used Appendix A to train your own IP Insights models, or, those are all true positives and you're in the midst of an attack. What are you still doing here? Go verify!
 
+On a serious note after you deploy this solution, even if you have trained your model on your own data, you will likely rack up a few dozen anomalies due to the fact the model has not seen the IAM principals for all of the associated roles for the solution (nearly 2 dozen of them). The other problem is Lambda invocations, seldom-invoked processes from Private IP space and other low-occurence administrative automation will probably trigger IP Insights. The only way to combat this is to get bigger samples of your CloudTrail data (more than the day's worth of logs pulled by Appendix A) and tune your hyperparemeters to tamp this number down. AWS also has a massive public IP space the your public Lambda functions will chew through and fire off anomalies, your first instinct may be to green-light all of AWS' IP space but it can just as easily be a malicious insider exfiltrating data with a Lambda function...
+
 ### 3. I really don't want to use Elasticsearch, how can I send these to Splunk?
 Create a Kinesis Data Firehose (KDF) with a Splunk destination. KDF has documentation [here](https://aws.amazon.com/kinesis/data-firehose/splunk/) for doing this, this varies if you have a self-managed Splunk or Splunk Cloud deployment, Splunk maintains its own [docs](https://docs.splunk.com/Documentation/AddOns/released/Firehose/ConfigureFirehose) as well. You will need to modify the code samples for all of the SyntheticSun Lambda functions to publish into the Firehose, some pseudocode is below, for Security Hub you just need to point the Firehose to Splunk.
 ```python
@@ -184,3 +200,12 @@ except Exception as e:
 
 ### 4. How can I send the logs to a self-managed Elasticsearch deployment?
 You will still need to use the `requests` library, but you can drop the `aws4auth` and instead set your `host` to whatever the IP address of your Elasticsearch cluster is e.g. `10.100.1.139:9000/index/_doc/1`.
+
+### 5. With all of the provided visualizations, what should I be looking for?
+Typically you will want to focus on any traffic that makes it into your application that is either anomalous or from the threat list. You will need to do some preliminary investigation regarding VPC Flow Logs as NATGW and other managed AWS ENI's may `ACCEPT` the traffic only for it to be blocked at your ALB, APIGW or WAF for a variety of reasons. The quickest way to check against this is to maintain a list (either in a CMDB or DynamoDB through other automation) of ENIs against what is behind them - it could be an AppStream fleet, an ELB, a NATGW or a fleet of EC2 instances. You can also try to track to Private IP space in the same way to eliminate any traffic that gets dropped by the appliance anyway.
+
+For WAF, API Gateway and ALB you get better indication if the traffic was actually allowed (e.g. `ALLOWED` for your WAF `action` or a `200` response code for ALB/APIGW). If you see that you have a threat match or hostname/domain match check DynamoDB (or MISP/LIMO itself) for what Feeds(s) / Collection(s) the match came from. It is highly likely that it is a TOR Anonymizer, I would check the list of all TOR nodes to be sure, even the other sources will capture TOR nodes. If it is *not* a TOR node, I would check [AbuseIPD](https://www.abuseipdb.com/) and [VirusTotal](https://www.virustotal.com/gui/home/url) (you'll need to pass something like `http(s)://Bad.ip.goes.here` to VirusTotal URL checker), this will give you better indication if it is a scanner or Shodan indexer. I would even reference GuardDuty and [Shodan](https://www.shodan.io/explore) to see if you can pull a match from there, if you see it in GuardDuty it is likely a scanner.
+
+Another good source of intent is to look at the `URI` from WAF, more often than not you have botnets that try to fuzz the internet or it is a [`masscan`](https://github.com/robertdavidgraham/masscan) or [`nimbostratus`](https://github.com/andresriancho/nimbostratus) scanner doing the same. AWS also maintains some of its own bruteforce scanners in the 44.0.0.0/8 CIDR which typically originate from us-west-* AWS regions which look for exposed IMDSv1 endpoints (thank you CapitalOne AAR).
+
+Anyway, I'm not a threat hunter, as a rule of thumb anything going outbound (VPC flow log `destination.*`) that matches a threat list you should be a little more worried about (unless it's your WAF/ALB/APIGW returning HTTP 400/500s) and anything super weird from Suricata. For this solution we put Suricata on MISP which will have all sorts of outbound and SMTP traffic, but, for production servers anything that is tripping your Anomalies or the RCF Detectors should be looked at.
