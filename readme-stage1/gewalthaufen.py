@@ -124,6 +124,45 @@ def cwa_ssm_parameter():
         print(e)
         raise
 
+def es_apigw_index_creation():
+    region = awsRegion
+    credentials = boto3.Session().get_credentials()
+    awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, 'es', session_token=credentials.token)
+    host = esHostUrl
+    index = 'apigw-accesslogs'
+    url = host + '/' + index + '/'
+    headers = { "Content-Type": "application/json" }
+    pload = {
+        "mappings": {
+            "properties": {
+                'clientIp': { "type": "ip"  },
+                'date': { "type": "date"  },
+                'requestTimeEpoch': { "type": "integer"  },
+                'httpMethod': { "type": "text"  },
+                'userAgent': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
+                'domainName': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
+                'routeKey': { "type": "text"  },
+                'status': { "type": "text"  },
+                'responseLength': { "type": "integer"  },
+                'requestId': { "type": "text"  },
+                'location': { "type": "geo_point" },
+                'clientCountryCode': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
+                'clientIsp': { "type": "text"  },
+                'clientOrg': { "type": "text"  },
+                'clientPort': { "type": "text"  },
+                'clientAs': { "type": "text"  },
+                'clientAsname': { "type": "text"  },
+                'clientHost': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
+                'clientFqdn': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
+                'clientIpThreatMatch': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
+                'clientHostnameThreatMatch': { "type": "text", "fields": {"keyword": { "type": "keyword"}}},
+                'isAnomaly': { "type": "text", "fields": {"keyword": { "type": "keyword"}}}
+            }
+        }
+    }
+    r = requests.put(url, auth=awsauth, json=pload, headers=headers)
+    print(r.json())
+
 def es_alb_index_creation():
     region = awsRegion
     credentials = boto3.Session().get_credentials()
@@ -327,6 +366,7 @@ def im_helping():
     endpoint_attachment()
     waf_logging()
     cwa_ssm_parameter()
+    es_apigw_index_creation
     es_alb_index_creation()
     es_vpc_index_creation()
     es_waf_index_creation()

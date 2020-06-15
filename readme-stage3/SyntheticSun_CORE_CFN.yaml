@@ -39,6 +39,125 @@ Parameters:
     Description: The CloudWatch Logs Group that Suricata NSM logs are published to
     Default: Suricata-Not-DNS-Logs
 Resources:
+  HoneypotHTTPApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: SyntheticSun-Honeypot-APIGW
+      Description: Lambda-backed API Gateway honeypot for SyntheticSun - Managed by CloudFormation
+      ProtocolType: HTTP
+      Target: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:SyntheticSun-APIGW-Honeypot/invocations
+  HoneypotLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SyntheticSun-APIGW-Honeypot
+      Description: Responds with utter nonsense to a HTTP API Gateway - Managed by CloudFormation
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt HoneypotLambdaExecRole.Arn
+      Runtime: python3.7
+      Timeout: 15
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {'statusCode': 411,'body': json.dumps('Definitely not a honeypot you just hit')}
+  HoneypotLambdaExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: HoneypotLambdaExecRole
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+  APIGWLogGrp: 
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: APIGWLogGrp
+      RetentionInDays: 7
+  APIGWCWLSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    DependsOn: APIGWLambdaPermission
+    Properties: 
+      LogGroupName: !Ref APIGWLogGrp
+      DestinationArn: !GetAtt APIGWParserLambda.Arn
+      FilterPattern: ""
+  APIGWLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt APIGWParserLambda.Arn
+      Principal: !Sub 'logs.${AWS::Region}.amazonaws.com'
+      SourceAccount: !Sub '${AWS::AccountId}'
+      SourceArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${APIGWLogGrp}:*'
+  APIGWParserLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SyntheticSun-APIGWParserLambda
+      Description: >-
+        Parses, enriches and evaluates API GW access logs before sending them to Elasticsearch Service - Managed by CloudFormation
+      Handler: lambda_function.lambda_handler
+      MemorySize: 512
+      Role: !GetAtt APIGWParserLambdaExecRole.Arn
+      Runtime: python3.8
+      Timeout: 720
+      Layers:
+        - !Ref RequestsLambdaLayer
+        - !Ref Aws4AuthLambdaLayer
+      Environment:
+        Variables:
+          IP_IOC_DYNAMODB_TABLE: IP-IOC-Threat-Intel
+          MISP_DOMAIN_IOC_DDB_TABLE: Domain-IOC-Threat-Intel
+          ANOMALY_DYNAMODB_TABLE: IP-Insights-Anomalies
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
+          SAGEMAKER_ENDPOINT: !GetAtt WAFIPInsightsEndpoint.EndpointName
+      Code:
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: syntheticsun-apigw-function.zip
+  APIGWParserLambdaExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: lambdatrust
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      RoleName: APIGWParserLambdaExecRole
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyName: APIGWParserLambdaExecRolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - es:ESHttpPost
+            - es:ESHttpPut
+            Resource: 
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es/*'
+          - Effect: Allow
+            Action:
+            - dynamodb:PutItem
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-Insights-Anomalies'
+          - Effect: Allow
+            Action:
+            - dynamodb:Query
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-IOC-Threat-Intel'
+          - Effect: Allow
+            Action:
+            - dynamodb:Query
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/Domain-IOC-Threat-Intel'
   CTLogParserLambdaExecRole:
     Type: AWS::IAM::Role
     Properties:
