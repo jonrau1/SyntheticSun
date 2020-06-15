@@ -467,7 +467,6 @@ Resources:
       Code:
         ZipFile: |
           import requests
-          import requests
           from requests_aws4auth import AWS4Auth
           import time
           import os
