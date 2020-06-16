@@ -117,7 +117,7 @@ To add additional ML-based anomaly detection we will use [Random Cut Forest](htt
 7. Navigate to the **Open Distro for Elasticsearch Anomaly Detection Kibana plugin** (yes, they actually named it that) and choose **Create detector**. Enter a **Name**,  **Description** and choose the `vpc-flows` index as shown below.
 ![Kibana Create Detector](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-createdetector.JPG)
 
-8. Select a value for **Timestamp field**, scroll to the bottom and enter `3` for **Detector interval** and `1` for **Window delay** and choose **Create**
+8. Select a value for **Timestamp field**, scroll to the bottom and enter `1` for **Detector interval** and `0` for **Window delay** and choose **Create**
 ![Kibana Create Detector](https://github.com/jonrau1/SyntheticSun/blob/master/img/kibana-intervaldetector.JPG)
 
 9. On the next screen select **Add feature**. Enter a **Name** (i.e. `FlowLog-Pckts`) and select **Custom expression** from the **Find anomalies based on** dropdown menu. Enter in the below JSON blob, scroll to the bottom, select **Save and start detector** and select **Confirm** at the next pop up.
