@@ -8,7 +8,7 @@ SyntheticSun is a defense-in-depth security automation and monitoring framework 
 *Are you feeling alive?*</br>
 <sub>- **Norma Jean, 2016**</sub>
 
-[![DepShield Badge](https://depshield.sonatype.org/badges/owner/repository/depshield.svg)](https://depshield.github.io)
+[![DepShield Badge](https://depshield.sonatype.org/badges/jonrau1/SyntheticSun/depshield.svg)](https://depshield.github.io)
 
 ## Synopsis
 - Uses event- and time-based serverless automation (e.g. AWS CodeBuild, AWS Lambda) to collect, normalize, enrich, and correlate security telemetry in Kibana
