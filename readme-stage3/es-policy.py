@@ -30,6 +30,12 @@ def elasticsearch_policy_attachment():
             {
             'Action': 'es:*',
             'Effect': 'Allow',
+            'Principal': {'AWS': ['arn:aws:iam::' + awsAccountId + ':role/APIGWParserLambdaExecRole']},
+            'Resource':'arn:aws:es:' + awsRegion + ':' + awsAccountId + ':domain/syntheticsun-es/*',
+            },
+            {
+            'Action': 'es:*',
+            'Effect': 'Allow',
             'Principal': {'AWS': ['arn:aws:iam::' + awsAccountId + ':role/FlowLogParserLambdaExecRole']},
             'Resource':'arn:aws:es:' + awsRegion + ':' + awsAccountId + ':domain/syntheticsun-es/*',
             },

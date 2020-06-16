@@ -39,6 +39,139 @@ Parameters:
     Description: The CloudWatch Logs Group that Suricata NSM logs are published to
     Default: Suricata-Not-DNS-Logs
 Resources:
+  HoneypotHTTPApi:
+    Type: AWS::ApiGatewayV2::Api
+    DependsOn: HoneypotLambda
+    Properties:
+      Name: SyntheticSun-Honeypot-APIGW
+      Description: Lambda-backed API Gateway honeypot for SyntheticSun - Managed by CloudFormation
+      ProtocolType: HTTP
+      RouteKey: ANY /
+      Target: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:SyntheticSun-APIGW-Honeypot/invocations'
+  HoneypotApiGwPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn: HoneypotHTTPApi
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt HoneypotLambda.Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HoneypotHTTPApi}/*/*/'
+  HoneypotLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SyntheticSun-APIGW-Honeypot
+      Description: Responds with utter nonsense to a HTTP API Gateway - Managed by CloudFormation
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt HoneypotLambdaExecRole.Arn
+      Runtime: python3.7
+      Timeout: 15
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {'statusCode': 411,'body': json.dumps('Definitely not a honeypot you just hit')}
+  HoneypotLambdaExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: HoneypotLambdaExecRole
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+  APIGWLogGrp: 
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: APIGWLogGrp
+      RetentionInDays: 7
+  APIGWCWLSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    DependsOn: APIGWLambdaPermission
+    Properties: 
+      LogGroupName: !Ref APIGWLogGrp
+      DestinationArn: !GetAtt APIGWParserLambda.Arn
+      FilterPattern: ""
+  APIGWLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt APIGWParserLambda.Arn
+      Principal: !Sub 'logs.${AWS::Region}.amazonaws.com'
+      SourceAccount: !Sub '${AWS::AccountId}'
+      SourceArn: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${APIGWLogGrp}:*'
+  APIGWParserLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: SyntheticSun-APIGWParserLambda
+      Description: >-
+        Parses, enriches and evaluates API GW access logs before sending them to Elasticsearch Service - Managed by CloudFormation
+      Handler: lambda_function.lambda_handler
+      MemorySize: 512
+      Role: !GetAtt APIGWParserLambdaExecRole.Arn
+      Runtime: python3.8
+      Timeout: 720
+      Layers:
+        - !Ref RequestsLambdaLayer
+        - !Ref Aws4AuthLambdaLayer
+      Environment:
+        Variables:
+          IP_IOC_DYNAMODB_TABLE: IP-IOC-Threat-Intel
+          MISP_DOMAIN_IOC_DDB_TABLE: Domain-IOC-Threat-Intel
+          ANOMALY_DYNAMODB_TABLE: IP-Insights-Anomalies
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
+          SAGEMAKER_ENDPOINT: !GetAtt WAFIPInsightsEndpoint.EndpointName
+      Code:
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: syntheticsun-apigw-function.zip
+  APIGWParserLambdaExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: lambdatrust
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      RoleName: APIGWParserLambdaExecRole
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyName: APIGWParserLambdaExecRolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - es:ESHttpPost
+            - es:ESHttpPut
+            Resource: 
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es'
+              - !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/syntheticsun-es/*'
+          - Effect: Allow
+            Action:
+            - dynamodb:PutItem
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-Insights-Anomalies'
+          - Effect: Allow
+            Action:
+            - dynamodb:Query
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/IP-IOC-Threat-Intel'
+          - Effect: Allow
+            Action:
+            - dynamodb:Query
+            Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/Domain-IOC-Threat-Intel'
+          - Effect: Allow
+            Action:
+            - sagemaker:InvokeEndpoint
+            Resource: !Ref WAFIPInsightsEndpoint
   CTLogParserLambdaExecRole:
     Type: AWS::IAM::Role
     Properties:
@@ -77,15 +210,8 @@ Resources:
             - s3:PutObject
             - s3:PutObjectAcl
             Resource:
-              - !Join 
-                - ''
-                - - 'arn:aws:s3:::'
-                  - !Ref CloudTrailBucketName
-              - !Join 
-                - ''
-                - - 'arn:aws:s3:::'
-                  - !Ref CloudTrailBucketName
-                  - '*'
+              - !Sub 'arn:aws:s3:::${CloudTrailBucketName}'
+              - !Sub 'arn:aws:s3:::${CloudTrailBucketName}/*'
           - Effect: Allow
             Action:
             - sagemaker:InvokeEndpoint
@@ -325,15 +451,8 @@ Resources:
             - s3:PutObject
             - s3:PutObjectAcl
             Resource:
-              - !Join 
-                - ''
-                - - 'arn:aws:s3:::'
-                  - !Ref ALBAccessLogS3Bucket
-              - !Join 
-                - ''
-                - - 'arn:aws:s3:::'
-                  - !Ref ALBAccessLogS3Bucket
-                  - '*'
+              - !Sub 'arn:aws:s3:::${ALBAccessLogS3Bucket}'
+              - !Sub 'arn:aws:s3:::${ALBAccessLogS3Bucket}/*'
   ALBLogLambdaParserFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -466,7 +585,6 @@ Resources:
           ELASTICSEARCH_URL: !Ref ElasticsearchUrl
       Code:
         ZipFile: |
-          import requests
           import requests
           from requests_aws4auth import AWS4Auth
           import time
@@ -751,113 +869,3 @@ Resources:
           Arn: !GetAtt SecHubStream.Arn
           Id: sechubtrigger
           RoleArn: !GetAtt SecHubToFirehoseEventRole.Arn
-  LambdaIAMRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Policies:
-        - PolicyName: root
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetBucketNotification
-                  - s3:PutBucketNotification
-                Resource: '*'
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: arn:aws:logs:*:*:*
-  CustomResourceLambdaFunction:
-    Type: 'AWS::Lambda::Function'
-    Properties:
-      Handler: index.lambda_handler
-      Role: !GetAtt LambdaIAMRole.Arn
-      Code:
-        ZipFile: |
-            from __future__ import print_function
-            import json
-            import boto3
-            import cfnresponse
-            SUCCESS = "SUCCESS"
-            FAILED = "FAILED"
-            print('Loading function')
-            s3 = boto3.resource('s3')  
-            def lambda_handler(event, context):
-                print("Received event: " + json.dumps(event, indent=2))
-                responseData={}
-                try:
-                    if event['RequestType'] == 'Delete':
-                        print("Request Type:",event['RequestType'])
-                        Bucket=event['ResourceProperties']['Bucket']
-                        delete_notification(Bucket)
-                        print("Sending response to custom resource after Delete")
-                    elif event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
-                        print("Request Type:",event['RequestType'])
-                        LambdaArn=event['ResourceProperties']['LambdaArn']
-                        Bucket=event['ResourceProperties']['Bucket']
-                        add_notification(LambdaArn, Bucket)
-                        responseData={'Bucket':Bucket}
-                        print("Sending response to custom resource")
-                    responseStatus = 'SUCCESS'
-                except Exception as e:
-                    print('Failed to process:', e)
-                    responseStatus = 'FAILURE'
-                    responseData = {'Failure': 'Something bad happened.'}
-                cfnresponse.send(event, context, responseStatus, responseData)
-            def add_notification(LambdaArn, Bucket):
-                bucket_notification = s3.BucketNotification(Bucket)
-                response = bucket_notification.put(
-                  NotificationConfiguration={
-                    'LambdaFunctionConfigurations': [
-                      {
-                          'LambdaFunctionArn': LambdaArn,
-                          'Events': [
-                              's3:ObjectCreated:*'
-                          ]
-                      }
-                    ]
-                  }
-                )
-                print("Put request completed....")
-              
-            def delete_notification(Bucket):
-                bucket_notification = s3.BucketNotification(Bucket)
-                response = bucket_notification.put(
-                    NotificationConfiguration={}
-                )
-                print("Delete request completed....")
-      Runtime: python3.6
-      Timeout: 50
-  WAFLambdaTrigger:
-    Type: Custom::LambdaTrigger
-    DependsOn: WAFLogLambdaParserFunctionS3Event
-    Properties:
-      ServiceToken: !GetAtt WAFLogParserLambda.Arn
-      LambdaArn: !GetAtt WAFLogParserLambda.Arn
-      Bucket: !Ref WAFLogS3Bucket
-  CTLambdaTrigger:
-    Type: Custom::LambdaTrigger
-    DependsOn: CTLogLambdaParserFunctionS3Event
-    Properties:
-      ServiceToken: !GetAtt CTLogParserLambda.Arn
-      LambdaArn: !GetAtt CTLogParserLambda.Arn
-      Bucket: !Ref CloudTrailBucketName
-  ALBLambdaTrigger:
-    Type: Custom::LambdaTrigger
-    DependsOn: ALBLogLambdaParserFunctionS3Event
-    Properties:
-      ServiceToken: !GetAtt ALBLogLambdaParserFunction.Arn
-      LambdaArn: !GetAtt ALBLogLambdaParserFunction.Arn
-      Bucket: !Ref ALBAccessLogS3Bucket
