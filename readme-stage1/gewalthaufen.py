@@ -53,7 +53,7 @@ def endpoint_attachment():
                     RouteTableIds=[tableId],
                     TagSpecifications=[
                         {
-                            'ResourceType': 'vpc-endpoint-service',
+                            'ResourceType': 'vpc-endpoint',
                             'Tags': [
                                 {
                                     'Key': 'Name',
@@ -77,7 +77,7 @@ def endpoint_attachment():
                     RouteTableIds=[tableId],
                     TagSpecifications=[
                         {
-                            'ResourceType': 'vpc-endpoint-service',
+                            'ResourceType': 'vpc-endpoint',
                             'Tags': [
                                 {
                                     'Key': 'Name',
