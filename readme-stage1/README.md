@@ -12,6 +12,8 @@ SyntheticSun is a proof of concept (POC) defense-in-depth security automation an
 In this Stage we will deploy the baseline services such as WAFv2, MISP and Elasticsearch and execute helper scripts to prepare the artifacts needed for the full solution. Before starting clone and navigate to this repository: `git clone https://github.com/jonrau1/SyntheticSun && cd SyntheticSun/readme-stage1` and then install required Python libraries `pip3 install -r requirements.txt`.
 
 ### Deployment instructions
+All commands ran from a Cloud9 Ubuntu 18.04LTS instance using Python 3.6 and the latest version of `awscli`, `boto3` and with an IAM instance profile
+
 1. Deploy a CloudFormation stack from `SyntheticSun_SETUP_CFN.yaml`. This can take a few minutes due to the Elasticsearch Service domain. Keep a tab open to refer to the resources as you will need various names and ARN values for the next steps.
 
 2. After the CloudFormation stack has sucessfully deployed execute the following to upload the baseline artifacts to S3.
@@ -30,9 +32,12 @@ aws lambda publish-layer-version \
 ```
 
 4. Execute another helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. The below 7 values must be provided in the order they are given. **Note:** For the Elasticsearch endpoint URL do *not* use the Kibana one and remove any trailing slash.
+
+**Important:** Replace the helper values (e.g. `my-aws-region`). If you are using an instance profile / don't use a credentials profile ensure you keep the default value (`default`)
 ```bash
 cd -
 python3 gewalthaufen.py \
+    my-credential-profile (default ) \
     my-aws-region (us-east-1) \
     vpc-id (vpc-123456) \
     waf-arn (from CFN e.g. arn:aws:wafv2:us-east-1:12345678:regional/webacl/SyntheticSun-WACL/waf-id-goes-here) \
