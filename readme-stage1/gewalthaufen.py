@@ -330,7 +330,7 @@ def instance_profile():
     except Exception as e:
         print(e)
         raise
-
+    
     # wait for role to propgate
     time.sleep(5)
     try:
@@ -345,14 +345,6 @@ def instance_profile():
         response = iam.attach_role_policy(
             RoleName='SyntheticSunMISPInstanceProfile',
             PolicyArn='arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy'
-        )
-    except Exception as e:
-        print(e)
-        raise
-    try:
-        response = iam.attach_role_policy(
-            RoleName='SyntheticSunMISPInstanceProfile',
-            PolicyArn='arn:aws:iam::aws:policy/AmazonS3FullAccess'
         )
     except Exception as e:
         print(e)
