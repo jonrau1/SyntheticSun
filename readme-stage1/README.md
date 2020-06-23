@@ -29,6 +29,7 @@ aws lambda publish-layer-version \
     --license-info "MIT-0" \
     --zip-file fileb://aws4auth-layer.zip \
     --compatible-runtimes python3.7 python3.8
+    --profile <PROFILE_NAME>
 ```
 
 4. <localInstance>  Execute another helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. The below 7 values must be provided in the order they are given. **Note:** For the Elasticsearch endpoint URL do *not* use the Kibana one and remove any trailing slash.
@@ -60,7 +61,7 @@ apt upgrade -y
 apt install -y suricata
 apt install -y awscli
 cd /etc/suricata
-aws s3 cp s3://<artifact-bucket-name-here>/suricata.yaml .
+aws s3 cp s3://<artifact-bucket-name-here>/suricata.yaml . --profile <PROFILE_NAME>
 ```
 
 7. <MISPInstance> Check the adapter name by using `ifconfig`. If this value is anything other than `ens5` replace the value in `suricata.yaml` before moving onto the next step. To quickly find the existing value search for `ens5`, it is around [Line 423](https://github.com/jonrau1/SyntheticSun/blob/master/readme-stage1/artifacts/suricata.yaml#L423)
@@ -77,7 +78,7 @@ exit
 exit
 ```
 
-9. <localInstance> Execute the following command to run the `AmazonCloudWatch-ManageAgent` document to configure the Agent using the Parameter spec you deployed in Step 4 and start it. **Note** replace the Instance ID and the region as needed.
+9. <localInstance> Execute the following command to run the `AmazonCloudWatch-ManageAgent` document to configure the Agent using the Parameter spec you deployed in Step 4 and start it. **Note** replace the Instance ID, profile name, and the region as needed.
 ```bash
 aws ssm send-command \
     --document-name "AmazonCloudWatch-ManageAgent" \
@@ -88,7 +89,8 @@ aws ssm send-command \
     --max-concurrency "50" \
     --max-errors "0" \
     --cloud-watch-output-config '{"CloudWatchOutputEnabled":true}' \
-    --region <AWS_REGION_HERE>
+    --region <AWS_REGION_HERE> \
+    --profile <PROFILE_NAME>
 ```
 
 This is the end of Stage 1 for SyntheticSun. Before moving onto Stage 2 confirm that Suricata logs are being published to CloudWatch by navigating to the CloudWatch Logs console and looking at either `Suricata-DNS-Logs` or `Suricata-Not-DNS-Logs` log groups. 
