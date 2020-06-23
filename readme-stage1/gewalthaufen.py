@@ -349,6 +349,14 @@ def instance_profile():
     except Exception as e:
         print(e)
         raise
+    try:
+        response = iam.attach_role_policy(
+            RoleName='SyntheticSunMISPInstanceProfile',
+            PolicyArn='arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        )
+    except Exception as e:
+        print(e)
+        raise
     print('Policies attached')
     # wait for role to propgate
     time.sleep(5)

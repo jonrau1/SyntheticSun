@@ -32,7 +32,7 @@ aws lambda publish-layer-version \
     --profile <PROFILE_NAME>
 ```
 
-4. <localInstance>  Execute another helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. The below 7 values must be provided in the order they are given. **Note:** For the Elasticsearch endpoint URL do *not* use the Kibana one and remove any trailing slash.
+4. <localInstance>  Execute another helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. The below 7 values must be provided in the order they are given. **Note:** For the Elasticsearch endpoint URL do *not* use the Kibana one and remove any trailing slash. Some of these values can be taken from the CloudFormation **outputs** / **resources** tabs.
 
 **Important:** Replace the helper values (e.g. `my-aws-region`). If you are using an instance profile / don't use a credentials profile ensure you keep the default value (`default`)
 ```bash
