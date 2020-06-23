@@ -18,21 +18,24 @@ import json
 from requests_aws4auth import AWS4Auth
 import requests
 import time
+# set the profile for boto3 to use
+profileName = sys.argv[1]
+session = boto3.Session(profile_name=profileName)
 # create boto3 clients
-ec2 = boto3.client('ec2')
 sts = boto3.client('sts')
-esearch = boto3.client('es')
-wafv2 = boto3.client('wafv2')
-ssm = boto3.client('ssm')
-iam = boto3.client('iam')
+ec2 = session.client('ec2')
+esearch = session.client('es')
+wafv2 = session.client('wafv2')
+ssm = session.client('ssm')
+iam = session.client('iam')
 awsAccountId = sts.get_caller_identity()['Account']
 # set command line arguments
-awsRegion = sys.argv[1]
-vpcId = sys.argv[2]
-wafArn = sys.argv[3]
-firehoseArn = sys.argv[4]
-esHostUrl = sys.argv[5]
-mispInstanceId = sys.argv[6]
+awsRegion = sys.argv[2]
+vpcId = sys.argv[3]
+wafArn = sys.argv[4]
+firehoseArn = sys.argv[5]
+esHostUrl = sys.argv[6]
+mispInstanceId = sys.argv[7]
 
 def endpoint_attachment():
     # get route tables
@@ -50,7 +53,7 @@ def endpoint_attachment():
                     RouteTableIds=[tableId],
                     TagSpecifications=[
                         {
-                            'ResourceType': 'vpc-endpoint-service',
+                            'ResourceType': 'vpc-endpoint',
                             'Tags': [
                                 {
                                     'Key': 'Name',
@@ -74,7 +77,7 @@ def endpoint_attachment():
                     RouteTableIds=[tableId],
                     TagSpecifications=[
                         {
-                            'ResourceType': 'vpc-endpoint-service',
+                            'ResourceType': 'vpc-endpoint',
                             'Tags': [
                                 {
                                     'Key': 'Name',
