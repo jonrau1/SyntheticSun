@@ -14,12 +14,12 @@ In this Stage we will deploy the baseline services such as WAFv2, MISP and Elast
 ### Deployment instructions
 All commands ran from a Cloud9 Ubuntu 18.04LTS instance using Python 3.6 and the latest version of `awscli`, `boto3` and with an IAM instance profile
 
-1. Deploy a CloudFormation stack from `SyntheticSun_SETUP_CFN.yaml`. This can take a few minutes due to the Elasticsearch Service domain. Keep a tab open to refer to the resources as you will need various names and ARN values for the next steps.
+1. <localInstance> Deploy a CloudFormation stack from `SyntheticSun_SETUP_CFN.yaml`. This can take a few minutes due to the Elasticsearch Service domain. Keep a tab open to refer to the resources as you will need various names and ARN values for the next steps.
 
-2. After the CloudFormation stack has sucessfully deployed execute the following to upload the baseline artifacts to S3.
+2. <localInstance> After the CloudFormation stack has sucessfully deployed execute the following to upload the baseline artifacts to S3.
 `cd artifacts && aws s3 sync . s3://<artifact-bucket-name-here>`
 
-3. Execute the following command to create a Lambda layer for the `requests-aws4auth` Python library from the ZIP file.
+3. <localInstance> Execute the following command to create a Lambda layer for the `requests-aws4auth` Python library from the ZIP file.
 ```bash
 cd -
 cd lambda-layer
@@ -29,9 +29,10 @@ aws lambda publish-layer-version \
     --license-info "MIT-0" \
     --zip-file fileb://aws4auth-layer.zip \
     --compatible-runtimes python3.7 python3.8
+    --profile <PROFILE_NAME>
 ```
 
-4. Execute another helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. The below 7 values must be provided in the order they are given. **Note:** For the Elasticsearch endpoint URL do *not* use the Kibana one and remove any trailing slash.
+4. <localInstance>  Execute another helper script to create the rest of the necessary resources and conditions required for the remainder of this solution. This final script uses the `sys.argv` method to create variables from values provided to the command line. The below 7 values must be provided in the order they are given. **Note:** For the Elasticsearch endpoint URL do *not* use the Kibana one and remove any trailing slash.
 
 **Important:** Replace the helper values (e.g. `my-aws-region`). If you are using an instance profile / don't use a credentials profile ensure you keep the default value (`default`)
 ```bash
@@ -46,11 +47,11 @@ python3 gewalthaufen.py \
     misp-instance-id (i-123456789012)
 ```
 
-5. Connect to your MISP instance via SSH. You can also try to use AWS Systems Manager Session Manager (`aws ssm start-session --target <misp-ec2-instance-id>`), however, the IAM role may not register the instance in time.
+5. <localInstance> Connect to your MISP instance via SSH. You can also try to use AWS Systems Manager Session Manager (`aws ssm start-session --target <misp-ec2-instance-id>`), however, the IAM role may not register the instance in time.
 
 **Note:** Refer [here](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) for information on installating the Session Manager Plugin for the AWS CLI if you go the Session Manager route.
 
-6. Execute the following commands to install Suricata. Replace the value of the S3 bucket for the artifacts bucket that was deployed by CloudFormation.
+6. <MISPInstance> Execute the following commands to install Suricata. Replace the value of the S3 bucket for the artifacts bucket that was deployed by CloudFormation.
 ```bash
 cd ~
 sudo su
@@ -60,12 +61,12 @@ apt upgrade -y
 apt install -y suricata
 apt install -y awscli
 cd /etc/suricata
-aws s3 cp s3://<artifact-bucket-name-here>/suricata.yaml .
+aws s3 cp s3://<artifact-bucket-name-here>/suricata.yaml . --profile <PROFILE_NAME>
 ```
 
-7. Check the adapter name by using `ifconfig`. If this value is anything other than `ens5` replace the value in `suricata.yaml` before moving onto the next step. To quickly find the existing value search for `ens5`, it is around [Line 423](https://github.com/jonrau1/SyntheticSun/blob/master/readme-stage1/artifacts/suricata.yaml#L423)
+7. <MISPInstance> Check the adapter name by using `ifconfig`. If this value is anything other than `ens5` replace the value in `suricata.yaml` before moving onto the next step. To quickly find the existing value search for `ens5`, it is around [Line 423](https://github.com/jonrau1/SyntheticSun/blob/master/readme-stage1/artifacts/suricata.yaml#L423)
 
-8. Execute the following commands to finalize configuration of Suricata and installation of the CloudWatch Logs Agent. **Note** the 2 instances of `exit` are correct in the script, the first leaves sudo and the second will stop your Session.
+8. <MISPInstance> Execute the following commands to finalize configuration of Suricata and installation of the CloudWatch Logs Agent. **Note** the 2 instances of `exit` are correct in the script, the first leaves sudo and the second will stop your Session.
 ```bash
 suricata-update
 cd ~
@@ -77,7 +78,7 @@ exit
 exit
 ```
 
-9. Execute the following command to run the `AmazonCloudWatch-ManageAgent` document to configure the Agent using the Parameter spec you deployed in Step 4 and start it. **Note** replace the Instance ID and the region as needed.
+9. <localInstance> Execute the following command to run the `AmazonCloudWatch-ManageAgent` document to configure the Agent using the Parameter spec you deployed in Step 4 and start it. **Note** replace the Instance ID, profile name, and the region as needed.
 ```bash
 aws ssm send-command \
     --document-name "AmazonCloudWatch-ManageAgent" \
@@ -88,7 +89,8 @@ aws ssm send-command \
     --max-concurrency "50" \
     --max-errors "0" \
     --cloud-watch-output-config '{"CloudWatchOutputEnabled":true}' \
-    --region <AWS_REGION_HERE>
+    --region <AWS_REGION_HERE> \
+    --profile <PROFILE_NAME>
 ```
 
 This is the end of Stage 1 for SyntheticSun. Before moving onto Stage 2 confirm that Suricata logs are being published to CloudWatch by navigating to the CloudWatch Logs console and looking at either `Suricata-DNS-Logs` or `Suricata-Not-DNS-Logs` log groups. 
