@@ -95,6 +95,6 @@ aws ssm send-command \
 
 This is the end of Stage 1 for SyntheticSun. Before moving onto Stage 2 confirm that Suricata logs are being published to CloudWatch by navigating to the CloudWatch Logs console and looking at either `Suricata-DNS-Logs` or `Suricata-Not-DNS-Logs` log groups. 
 
-If logs are not being published verify that the CloudWatch Agent is running by using the `AmazonCloudWatch-ManageAgent` Document in `status` mode and looking for Suricata publishing logs by navigating to `/var/logs/suricata` and verifying that both `eve-dns.json` and `eve-nsm.json` are created and streaming by using `tail -f`. If the `suricata-update` command was succesful you likely do not have the right network interface specified, repeat Step 7.
+If logs are not being published verify that the CloudWatch Agent is running by using the `AmazonCloudWatch-ManageAgent` Document in `status` mode and looking for Suricata publishing logs by navigating to `/var/log/suricata` and verifying that both `eve-dns.json` and `eve-nsm.json` are created and streaming by using `tail -f`. If the `suricata-update` command was succesful you likely do not have the right network interface specified, repeat Step 7.
 
 **[Stage 2 starts here](https://github.com/jonrau1/SyntheticSun/tree/master/readme-stage2)**
