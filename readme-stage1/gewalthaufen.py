@@ -330,7 +330,7 @@ def instance_profile():
     except Exception as e:
         print(e)
         raise
-
+    
     # wait for role to propgate
     time.sleep(5)
     try:

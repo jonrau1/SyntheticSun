@@ -296,3 +296,12 @@ Resources:
     Properties:
       LogGroupName: Suricata-Not-DNS-Logs 
       RetentionInDays: 7
+Outputs:
+  WafArn:
+    !GetAtt WAFv2WebACL.Arn
+  FirehoseArn:
+    !GetAtt WAFLoggingDeliveryStream.Arn
+  ElasticsearchUrl:
+    !GetAtt SyntheticSunES.DomainEndpoint
+  MispInstanceId:
+    !Ref MISPInstance
