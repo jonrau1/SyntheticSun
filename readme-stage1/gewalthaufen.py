@@ -305,80 +305,6 @@ def es_waf_index_creation():
     }
     r = requests.put(url, auth=awsauth, json=pload, headers=headers)
     print(r.json())
-    
-def instance_profile():
-    trustPolicy = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-            "Effect": "Allow",
-            "Principal": { "Service": "ec2.amazonaws.com" },
-            "Action": "sts:AssumeRole"
-            }
-        ]
-    }
-    ec2Trust = json.dumps(trustPolicy)
-
-    try:
-        response = iam.create_role(
-            RoleName='SyntheticSunMISPInstanceProfile',
-            AssumeRolePolicyDocument=ec2Trust,
-            Description='Role for SyntheticSun MISP instance - created by script',
-            MaxSessionDuration=3600
-        )
-        print('Role created')
-    except Exception as e:
-        print(e)
-        raise
-    
-    # wait for role to propgate
-    time.sleep(5)
-    try:
-        response = iam.attach_role_policy(
-            RoleName='SyntheticSunMISPInstanceProfile',
-            PolicyArn='arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
-        )
-    except Exception as e:
-        print(e)
-        raise
-    try:
-        response = iam.attach_role_policy(
-            RoleName='SyntheticSunMISPInstanceProfile',
-            PolicyArn='arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy'
-        )
-    except Exception as e:
-        print(e)
-        raise
-    print('Policies attached')
-    # wait for role to propgate
-    time.sleep(5)
-
-    try:
-        response = iam.create_instance_profile(InstanceProfileName='SyntheticSunMISPInstanceProfile')
-    except Exception as e:
-        print(e)
-        raise
-    time.sleep(5)
-    try:
-        response = iam.add_role_to_instance_profile(
-            InstanceProfileName='SyntheticSunMISPInstanceProfile',
-            RoleName='SyntheticSunMISPInstanceProfile'
-        )
-    except Exception as e:
-        print(e)
-        raise
-    print('instance profile created')
-    time.sleep(6)
-
-    try:
-        response = ec2.associate_iam_instance_profile(
-            IamInstanceProfile={'Name': 'SyntheticSunMISPInstanceProfile'},
-            InstanceId=mispInstanceId
-        )
-        print(response)
-    except Exception as e:
-        print(e)
-        raise
 
 def im_helping():
     endpoint_attachment()
@@ -388,6 +314,5 @@ def im_helping():
     es_alb_index_creation()
     es_vpc_index_creation()
     es_waf_index_creation()
-    instance_profile()
 
 im_helping()

@@ -239,7 +239,8 @@ Resources:
         - !Ref WAFLoggingDeliveryStreamRole
   MISPInstance:
     Type: AWS::EC2::Instance
-    Properties: 
+    Properties:
+      IamInstanceProfile: !GetAtt MISPInstanceProfile.Arn
       DisableApiTermination: true
       ImageId: !Ref MISPAmiId
       KeyName: !Ref Ec2KeyPair
@@ -256,6 +257,44 @@ Resources:
         - 
           Key: Name
           Value: SyntheticSun-MISP-Instance
+  MISPInstanceProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy
+      RoleName: SyntheticSun-MISP-Role
+      Policies:
+      - PolicyName: SyntheticSun-MISP-RolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+              - s3:HeadBucket
+              - s3:HeadObject 
+              - s3:ListBucket
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Resource:
+              - !Sub 'arn:aws:s3:::${SyntheticSunArtifacts}'
+              - !Sub 'arn:aws:s3:::${SyntheticSunArtifacts}/*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: ec2.amazonaws.com }
+          Action:
+            - sts:AssumeRole
+  MISPInstanceProfile:
+    DependsOn: MISPInstanceProfileRole
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: SyntheticSun-MISP-Role
+      Roles: 
+        - !Ref MISPInstanceProfileRole
   SyntheticSunArtifacts:
     Type: AWS::S3::Bucket
     Properties:
