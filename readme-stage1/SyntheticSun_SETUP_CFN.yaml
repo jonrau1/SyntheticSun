@@ -240,7 +240,7 @@ Resources:
   MISPInstance:
     Type: AWS::EC2::Instance
     Properties:
-      IamInstanceProfile: !GetAtt MISPInstanceProfile.Arn
+      IamInstanceProfile: !Ref MISPInstanceProfile
       DisableApiTermination: true
       ImageId: !Ref MISPAmiId
       KeyName: !Ref Ec2KeyPair
