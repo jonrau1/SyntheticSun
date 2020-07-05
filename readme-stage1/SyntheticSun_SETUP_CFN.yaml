@@ -90,6 +90,7 @@ Resources:
         - !Ref EndpointRouteTable
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
       VpcEndpointType: Gateway
+      VpcId: !Ref SGVpcId
   S3VPCEndpoint:
     Type: AWS::EC2::VPCEndpoint
     Properties: 
@@ -97,6 +98,7 @@ Resources:
         - !Ref EndpointRouteTable
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
       VpcEndpointType: Gateway
+      VpcId: !Ref SGVpcId 
   ThreatIntelWAFv2IPBlacklist:
     Type: AWS::WAFv2::IPSet
     Properties: 
@@ -354,11 +356,11 @@ Resources:
       RetentionInDays: 7
 Outputs:
   WafArnOutput:
-    Description: WAF ARN used for gewalthaufen.py
+    Description: WAF Web ACL ARN
     Value: !GetAtt WAFv2WebACL.Arn
   FirehoseArnOutput:
-    Description: Firehose ARN used for gewalthaufen.py
+    Description: Firehouse Delivery Stream ARN
     Value: !GetAtt WAFLoggingDeliveryStream.Arn
   ElasticsearchUrlOuput:
-    Description: ES URL used for gewalthaufen.py
+    Description: Elasticsearch Service domain endpoint URL
     Value: !GetAtt SyntheticSunES.DomainEndpoint
