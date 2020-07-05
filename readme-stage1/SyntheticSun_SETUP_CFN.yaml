@@ -353,12 +353,12 @@ Resources:
       LogGroupName: Suricata-Not-DNS-Logs 
       RetentionInDays: 7
 Outputs:
-  WafArn:
-    Value: !GetAtt WAFv2WebACL.Arn
+  WafArnOutput:
     Description: WAF ARN used for gewalthaufen.py
-  FirehoseArn:
-    Value: !GetAtt WAFLoggingDeliveryStream.Arn
+    Value: !GetAtt WAFv2WebACL.Arn
+  FirehoseArnOutput:
     Description: Firehose ARN used for gewalthaufen.py
-  ElasticsearchUrl:
-    Value: !GetAtt SyntheticSunES.DomainEndpoint
+    Value: !GetAtt WAFLoggingDeliveryStream.Arn
+  ElasticsearchUrlOuput:
     Description: ES URL used for gewalthaufen.py
+    Value: !GetAtt SyntheticSunES.DomainEndpoint
