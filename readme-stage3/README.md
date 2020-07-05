@@ -146,7 +146,7 @@ To add additional ML-based anomaly detection we will use [Random Cut Forest](htt
 }
 ```
 
-11. (**Note:** skip this step if you'll use Slack, Chime or a custom webhook which are native to Elasticsearch Monitors). Execute the following script to create two SNS topics and an IAM role to allow Elasticsearch to alert your topic for VPC and ALB anomaly detections: `python3 monitors.py`.
+11. (**Note:** skip this step if you'll use Slack, Chime or a custom webhook which are native to Elasticsearch Monitors). Execute the following script to create two SNS topics and an IAM role to allow Elasticsearch to alert your topic for VPC and ALB anomaly detections: `python3 monitors.py default`. **Note** replace `default` with the same of your credentials profile if using something other than the default / STS from an IAM role.
 
 **Note:** Repeat Steps 12 - 15 for each detector you create
 
