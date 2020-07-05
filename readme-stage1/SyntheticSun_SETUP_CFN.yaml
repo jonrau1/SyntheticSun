@@ -354,10 +354,11 @@ Resources:
       RetentionInDays: 7
 Outputs:
   WafArn:
-    !GetAtt WAFv2WebACL.Arn
+    Value: !GetAtt WAFv2WebACL.Arn
+    Description: WAF ARN used for gewalthaufen.py
   FirehoseArn:
-    !GetAtt WAFLoggingDeliveryStream.Arn
+    Value: !GetAtt WAFLoggingDeliveryStream.Arn
+    Description: Firehose ARN used for gewalthaufen.py
   ElasticsearchUrl:
-    !GetAtt SyntheticSunES.DomainEndpoint
-  MispInstanceId:
-    !Ref MISPInstance
+    Value: !GetAtt SyntheticSunES.DomainEndpoint
+    Description: ES URL used for gewalthaufen.py
