@@ -209,3 +209,9 @@ For WAF, API Gateway and ALB you get better indication if the traffic was actual
 Another good source of intent is to look at the `URI` from WAF, more often than not you have botnets that try to fuzz the internet or it is a [`masscan`](https://github.com/robertdavidgraham/masscan) or [`nimbostratus`](https://github.com/andresriancho/nimbostratus) scanner doing the same. AWS also maintains some of its own bruteforce scanners in the 44.0.0.0/8 CIDR which typically originate from us-west-* AWS regions which look for exposed IMDSv1 endpoints (thank you CapitalOne AAR).
 
 Anyway, I'm not a threat hunter, as a rule of thumb anything going outbound (VPC flow log `destination.*`) that matches a threat list you should be a little more worried about (unless it's your WAF/ALB/APIGW returning HTTP 400/500s) and anything super weird from Suricata. For this solution we put Suricata on MISP which will have all sorts of outbound and SMTP traffic, but, for production servers anything that is tripping your Anomalies or the RCF Detectors should be looked at.
+
+## Contributing
+I am happy to accept PR's for items tagged as "Help Wanted" in Issues or the Project Board. I will review any other proposed PRs as well if it meets the spirit of the project.
+
+## License
+This library is licensed under the GNU General Public License v3.0 (GPL-3.0) License. See the LICENSE file.

@@ -98,3 +98,9 @@ No, GuardDuty will generate a different finding type when traffic is seen going 
 
 ### 5. Why do I see a processing error tooltip for my threat intel sets in GuardDuty?
 Likely the TXT files for the threat intel sets were empty. This will happen if you don't run either the MISP or LIMO automation job before running the GuardDuty job. Additionally, it is unlikely you will have any entries in the anomalie threat intel set until you have ran Stage 3 for a prolonged period of time.
+
+## Contributing
+I am happy to accept PR's for items tagged as "Help Wanted" in Issues or the Project Board. I will review any other proposed PRs as well if it meets the spirit of the project.
+
+## License
+This library is licensed under the GNU General Public License v3.0 (GPL-3.0) License. See the LICENSE file.
