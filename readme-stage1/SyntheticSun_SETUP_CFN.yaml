@@ -91,7 +91,6 @@ Resources:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
       VpcEndpointType: Gateway
   S3VPCEndpoint:
-    DynamoRouteTable:
     Type: AWS::EC2::VPCEndpoint
     Properties: 
       RouteTableIds: 
