@@ -87,6 +87,7 @@ The second diagram details anomaly detection and threat intelligence enrichment 
 3. After the stack finishes creating execute another Python script to generate a resource-based IAM policy for the Elasticsearch Service domain. This script uses the `sys.argv` method to create variables from values provided to the command line. The below 2 values must be provided in the order they are given.
 ```bash
 python3 es-policy.py \
+    my-credential-profile (default ) \
     my-aws-region (us-east-1) \
     trusted-cidr (e.g. 192.168.1.1/32) 
 ```
@@ -96,6 +97,7 @@ python3 es-policy.py \
 4. Execute another script to add Bucket Events to the CloudTrail, ALB and WAF log buckets as well as configure the API Gateway API to enable logging in the correct format. The values below must be provided in the order they are given. **Note:** this script will likely fail if you buckets are not all in the same home region.
 ```bash
 python3 tercio.py \
+    my-credential-profile (default ) \
     my-aws-region (us-east-1) \
     cloudtrail-bucket-name \
     alb-bucket-name \
