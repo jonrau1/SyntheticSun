@@ -24,6 +24,9 @@ Parameters:
   MISPSecGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Security Group for MISP instance. Must allow HTTPS traffic and optionally SSH access from a trusted CIDR
+  EndpointRouteTable:
+    Type: String
+    Description: Route table to attach the DynamoDB and S3 VPC Endpoints to. This should be a route table in the VPC you will specify below.
   MISPAmiId:
     Type: AWS::EC2::Image::Id
     Description: The AMI ID for MISP-Cloud in us-east-1. Change to one applicable for your Region, AMIs are availabe at MISP/misp-cloud GitHub
@@ -80,6 +83,21 @@ Parameters:
       - r5.large.elasticsearch
       - r5.xlarge.elasticsearch
 Resources:
+  DynamoVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties: 
+      RouteTableIds: 
+        - !Ref EndpointRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcEndpointType: Gateway
+  S3VPCEndpoint:
+    DynamoRouteTable:
+    Type: AWS::EC2::VPCEndpoint
+    Properties: 
+      RouteTableIds: 
+        - !Ref EndpointRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
   ThreatIntelWAFv2IPBlacklist:
     Type: AWS::WAFv2::IPSet
     Properties: 

@@ -40,11 +40,9 @@ cd -
 python3 gewalthaufen.py \
     my-credential-profile (default ) \
     my-aws-region (us-east-1) \
-    vpc-id (vpc-123456) \
     waf-arn (from CFN e.g. arn:aws:wafv2:us-east-1:12345678:regional/webacl/SyntheticSun-WACL/waf-id-goes-here) \
     firehose-arn (from CFN e.g. arn:aws:firehose:us-east-1:12345678:deliverystream/aws-waf-logs-syntheticsun) \
-    elasticsearch-endpoint (e.g. https://my-domain-elasticsearch.com) \
-    misp-instance-id (i-123456789012)
+    elasticsearch-endpoint (e.g. https://my-domain-elasticsearch.com)
 ```
 
 5. <localInstance> Connect to your MISP instance via SSH. You can also try to use AWS Systems Manager Session Manager (`aws ssm start-session --target <misp-ec2-instance-id>`), however, the IAM role may not register the instance in time.

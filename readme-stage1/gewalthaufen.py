@@ -23,77 +23,15 @@ profileName = sys.argv[1]
 session = boto3.Session(profile_name=profileName)
 # create boto3 clients
 sts = boto3.client('sts')
-ec2 = session.client('ec2')
 esearch = session.client('es')
 wafv2 = session.client('wafv2')
 ssm = session.client('ssm')
-iam = session.client('iam')
 awsAccountId = sts.get_caller_identity()['Account']
 # set command line arguments
 awsRegion = sys.argv[2]
-vpcId = sys.argv[3]
-wafArn = sys.argv[4]
-firehoseArn = sys.argv[5]
-esHostUrl = sys.argv[6]
-mispInstanceId = sys.argv[7]
-
-def endpoint_attachment():
-    # get route tables
-    try:
-        response = ec2.describe_route_tables(Filters=[{'Name': 'vpc-id','Values': [vpcId]}],DryRun=False)
-        for tables in response['RouteTables']:
-            tableId = str(tables['RouteTableId'])
-            # create S3 endpoint
-            try:
-                response = ec2.create_vpc_endpoint(
-                    DryRun=False,
-                    VpcEndpointType='Gateway',
-                    VpcId=vpcId,
-                    ServiceName='com.amazonaws.' + awsRegion + '.s3',
-                    RouteTableIds=[tableId],
-                    TagSpecifications=[
-                        {
-                            'ResourceType': 'vpc-endpoint',
-                            'Tags': [
-                                {
-                                    'Key': 'Name',
-                                    'Value': 'SyntheticSun-' + vpcId + '-S3GW'
-                                }
-                            ]
-                        }
-                    ]
-                )
-                print(response)
-            except Exception as e:
-                print(e)
-                raise
-            # create DynamoDB endpoint
-            try:
-                response = ec2.create_vpc_endpoint(
-                    DryRun=False,
-                    VpcEndpointType='Gateway',
-                    VpcId=vpcId,
-                    ServiceName='com.amazonaws.' + awsRegion + '.dynamodb',
-                    RouteTableIds=[tableId],
-                    TagSpecifications=[
-                        {
-                            'ResourceType': 'vpc-endpoint',
-                            'Tags': [
-                                {
-                                    'Key': 'Name',
-                                    'Value': 'SyntheticSun-' + vpcId + '-DDBGW'
-                                }
-                            ]
-                        }
-                    ]
-                )
-                print(response)
-            except Exception as e:
-                print(e)
-                raise
-    except Exception as e:
-        print(e)
-        raise
+wafArn = sys.argv[3]
+firehoseArn = sys.argv[4]
+esHostUrl = sys.argv[5]
 
 def waf_logging():
     try:
