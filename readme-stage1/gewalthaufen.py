@@ -23,77 +23,15 @@ profileName = sys.argv[1]
 session = boto3.Session(profile_name=profileName)
 # create boto3 clients
 sts = boto3.client('sts')
-ec2 = session.client('ec2')
 esearch = session.client('es')
 wafv2 = session.client('wafv2')
 ssm = session.client('ssm')
-iam = session.client('iam')
 awsAccountId = sts.get_caller_identity()['Account']
 # set command line arguments
 awsRegion = sys.argv[2]
-vpcId = sys.argv[3]
-wafArn = sys.argv[4]
-firehoseArn = sys.argv[5]
-esHostUrl = sys.argv[6]
-mispInstanceId = sys.argv[7]
-
-def endpoint_attachment():
-    # get route tables
-    try:
-        response = ec2.describe_route_tables(Filters=[{'Name': 'vpc-id','Values': [vpcId]}],DryRun=False)
-        for tables in response['RouteTables']:
-            tableId = str(tables['RouteTableId'])
-            # create S3 endpoint
-            try:
-                response = ec2.create_vpc_endpoint(
-                    DryRun=False,
-                    VpcEndpointType='Gateway',
-                    VpcId=vpcId,
-                    ServiceName='com.amazonaws.' + awsRegion + '.s3',
-                    RouteTableIds=[tableId],
-                    TagSpecifications=[
-                        {
-                            'ResourceType': 'vpc-endpoint',
-                            'Tags': [
-                                {
-                                    'Key': 'Name',
-                                    'Value': 'SyntheticSun-' + vpcId + '-S3GW'
-                                }
-                            ]
-                        }
-                    ]
-                )
-                print(response)
-            except Exception as e:
-                print(e)
-                raise
-            # create DynamoDB endpoint
-            try:
-                response = ec2.create_vpc_endpoint(
-                    DryRun=False,
-                    VpcEndpointType='Gateway',
-                    VpcId=vpcId,
-                    ServiceName='com.amazonaws.' + awsRegion + '.dynamodb',
-                    RouteTableIds=[tableId],
-                    TagSpecifications=[
-                        {
-                            'ResourceType': 'vpc-endpoint',
-                            'Tags': [
-                                {
-                                    'Key': 'Name',
-                                    'Value': 'SyntheticSun-' + vpcId + '-DDBGW'
-                                }
-                            ]
-                        }
-                    ]
-                )
-                print(response)
-            except Exception as e:
-                print(e)
-                raise
-    except Exception as e:
-        print(e)
-        raise
+wafArn = sys.argv[3]
+firehoseArn = sys.argv[4]
+esHostUrl = sys.argv[5]
 
 def waf_logging():
     try:
@@ -305,80 +243,6 @@ def es_waf_index_creation():
     }
     r = requests.put(url, auth=awsauth, json=pload, headers=headers)
     print(r.json())
-    
-def instance_profile():
-    trustPolicy = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-            "Effect": "Allow",
-            "Principal": { "Service": "ec2.amazonaws.com" },
-            "Action": "sts:AssumeRole"
-            }
-        ]
-    }
-    ec2Trust = json.dumps(trustPolicy)
-
-    try:
-        response = iam.create_role(
-            RoleName='SyntheticSunMISPInstanceProfile',
-            AssumeRolePolicyDocument=ec2Trust,
-            Description='Role for SyntheticSun MISP instance - created by script',
-            MaxSessionDuration=3600
-        )
-        print('Role created')
-    except Exception as e:
-        print(e)
-        raise
-    
-    # wait for role to propgate
-    time.sleep(5)
-    try:
-        response = iam.attach_role_policy(
-            RoleName='SyntheticSunMISPInstanceProfile',
-            PolicyArn='arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
-        )
-    except Exception as e:
-        print(e)
-        raise
-    try:
-        response = iam.attach_role_policy(
-            RoleName='SyntheticSunMISPInstanceProfile',
-            PolicyArn='arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy'
-        )
-    except Exception as e:
-        print(e)
-        raise
-    print('Policies attached')
-    # wait for role to propgate
-    time.sleep(5)
-
-    try:
-        response = iam.create_instance_profile(InstanceProfileName='SyntheticSunMISPInstanceProfile')
-    except Exception as e:
-        print(e)
-        raise
-    time.sleep(5)
-    try:
-        response = iam.add_role_to_instance_profile(
-            InstanceProfileName='SyntheticSunMISPInstanceProfile',
-            RoleName='SyntheticSunMISPInstanceProfile'
-        )
-    except Exception as e:
-        print(e)
-        raise
-    print('instance profile created')
-    time.sleep(6)
-
-    try:
-        response = ec2.associate_iam_instance_profile(
-            IamInstanceProfile={'Name': 'SyntheticSunMISPInstanceProfile'},
-            InstanceId=mispInstanceId
-        )
-        print(response)
-    except Exception as e:
-        print(e)
-        raise
 
 def im_helping():
     endpoint_attachment()
@@ -388,6 +252,5 @@ def im_helping():
     es_alb_index_creation()
     es_vpc_index_creation()
     es_waf_index_creation()
-    instance_profile()
 
 im_helping()

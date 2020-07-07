@@ -15,10 +15,14 @@
 import boto3
 import json
 import time
+import sys
+# set your profile
+profileName = sys.argv[1]
+session = boto3.Session(profile_name=profileName)
 # create boto3 clients
 sts = boto3.client('sts')
-sns = boto3.client('sns')
-iam = boto3.client('iam')
+sns = session.client('sns')
+iam = session.client('iam')
 # create variables
 awsRegion = boto3.Session().region_name
 awsAccountId = sts.get_caller_identity()['Account']

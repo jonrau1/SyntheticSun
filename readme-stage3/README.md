@@ -87,6 +87,7 @@ The second diagram details anomaly detection and threat intelligence enrichment 
 3. After the stack finishes creating execute another Python script to generate a resource-based IAM policy for the Elasticsearch Service domain. This script uses the `sys.argv` method to create variables from values provided to the command line. The below 2 values must be provided in the order they are given.
 ```bash
 python3 es-policy.py \
+    my-credential-profile (default ) \
     my-aws-region (us-east-1) \
     trusted-cidr (e.g. 192.168.1.1/32) 
 ```
@@ -96,6 +97,7 @@ python3 es-policy.py \
 4. Execute another script to add Bucket Events to the CloudTrail, ALB and WAF log buckets as well as configure the API Gateway API to enable logging in the correct format. The values below must be provided in the order they are given. **Note:** this script will likely fail if you buckets are not all in the same home region.
 ```bash
 python3 tercio.py \
+    my-credential-profile (default ) \
     my-aws-region (us-east-1) \
     cloudtrail-bucket-name \
     alb-bucket-name \
@@ -144,7 +146,7 @@ To add additional ML-based anomaly detection we will use [Random Cut Forest](htt
 }
 ```
 
-11. (**Note:** skip this step if you'll use Slack, Chime or a custom webhook which are native to Elasticsearch Monitors). Execute the following script to create two SNS topics and an IAM role to allow Elasticsearch to alert your topic for VPC and ALB anomaly detections: `python3 monitors.py`.
+11. (**Note:** skip this step if you'll use Slack, Chime or a custom webhook which are native to Elasticsearch Monitors). Execute the following script to create two SNS topics and an IAM role to allow Elasticsearch to alert your topic for VPC and ALB anomaly detections: `python3 monitors.py default`. **Note** replace `default` with the same of your credentials profile if using something other than the default / STS from an IAM role.
 
 **Note:** Repeat Steps 12 - 15 for each detector you create
 
@@ -209,3 +211,9 @@ For WAF, API Gateway and ALB you get better indication if the traffic was actual
 Another good source of intent is to look at the `URI` from WAF, more often than not you have botnets that try to fuzz the internet or it is a [`masscan`](https://github.com/robertdavidgraham/masscan) or [`nimbostratus`](https://github.com/andresriancho/nimbostratus) scanner doing the same. AWS also maintains some of its own bruteforce scanners in the 44.0.0.0/8 CIDR which typically originate from us-west-* AWS regions which look for exposed IMDSv1 endpoints (thank you CapitalOne AAR).
 
 Anyway, I'm not a threat hunter, as a rule of thumb anything going outbound (VPC flow log `destination.*`) that matches a threat list you should be a little more worried about (unless it's your WAF/ALB/APIGW returning HTTP 400/500s) and anything super weird from Suricata. For this solution we put Suricata on MISP which will have all sorts of outbound and SMTP traffic, but, for production servers anything that is tripping your Anomalies or the RCF Detectors should be looked at.
+
+## Contributing
+I am happy to accept PR's for items tagged as "Help Wanted" in Issues or the Project Board. I will review any other proposed PRs as well if it meets the spirit of the project.
+
+## License
+This library is licensed under the GNU General Public License v3.0 (GPL-3.0) License. See the LICENSE file.

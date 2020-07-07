@@ -17,13 +17,16 @@ import boto3
 import json
 from requests_aws4auth import AWS4Auth
 import requests
+# set your profile
+profileName = sys.argv[1]
+session = boto3.Session(profile_name=profileName)
 # create boto3 clients
-esearch = boto3.client('es')
+esearch = session.client('es')
 sts = boto3.client('sts')
 awsAccountId = sts.get_caller_identity()['Account']
 # set command line arguments
-awsRegion = sys.argv[1]
-trustedCidr = sys.argv[2]
+awsRegion = sys.argv[2]
+trustedCidr = sys.argv[3]
 
 def elasticsearch_policy_attachment():
     rawPolicy = {

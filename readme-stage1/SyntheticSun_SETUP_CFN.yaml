@@ -24,6 +24,9 @@ Parameters:
   MISPSecGroup:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Security Group for MISP instance. Must allow HTTPS traffic and optionally SSH access from a trusted CIDR
+  EndpointRouteTable:
+    Type: String
+    Description: Route table to attach the DynamoDB and S3 VPC Endpoints to. This should be a route table in the VPC you will specify below.
   MISPAmiId:
     Type: AWS::EC2::Image::Id
     Description: The AMI ID for MISP-Cloud in us-east-1. Change to one applicable for your Region, AMIs are availabe at MISP/misp-cloud GitHub
@@ -58,7 +61,8 @@ Parameters:
     Default: r5.large.elasticsearch
     Description: Instance type for Elasticsearch data nodes
     AllowedValues:
-      - t3.xlarge.elasticsearch
+      - t2.small.elasticsearch
+      - t2.medium.elasticsearch
       - m4.xlarge.elasticsearch
       - m5.large.elasticsearch
       - r4.large.elasticsearch
@@ -71,7 +75,8 @@ Parameters:
     Default: m5.large.elasticsearch
     Description: Instance type for Elasticsearch master nodes
     AllowedValues: 
-      - t3.xlarge.elasticsearch
+      - t2.small.elasticsearch
+      - t2.medium.elasticsearch
       - m4.xlarge.elasticsearch
       - m5.large.elasticsearch
       - r4.large.elasticsearch
@@ -80,6 +85,22 @@ Parameters:
       - r5.large.elasticsearch
       - r5.xlarge.elasticsearch
 Resources:
+  DynamoVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties: 
+      RouteTableIds: 
+        - !Ref EndpointRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcEndpointType: Gateway
+      VpcId: !Ref SGVpcId
+  S3VPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties: 
+      RouteTableIds: 
+        - !Ref EndpointRouteTable
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+      VpcId: !Ref SGVpcId 
   ThreatIntelWAFv2IPBlacklist:
     Type: AWS::WAFv2::IPSet
     Properties: 
@@ -239,7 +260,8 @@ Resources:
         - !Ref WAFLoggingDeliveryStreamRole
   MISPInstance:
     Type: AWS::EC2::Instance
-    Properties: 
+    Properties:
+      IamInstanceProfile: !Ref MISPInstanceProfile
       DisableApiTermination: true
       ImageId: !Ref MISPAmiId
       KeyName: !Ref Ec2KeyPair
@@ -256,6 +278,44 @@ Resources:
         - 
           Key: Name
           Value: SyntheticSun-MISP-Instance
+  MISPInstanceProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy
+      RoleName: SyntheticSun-MISP-Role
+      Policies:
+      - PolicyName: SyntheticSun-MISP-RolePolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+              - s3:HeadBucket
+              - s3:HeadObject 
+              - s3:ListBucket
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Resource:
+              - !Sub 'arn:aws:s3:::${SyntheticSunArtifacts}'
+              - !Sub 'arn:aws:s3:::${SyntheticSunArtifacts}/*'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: { Service: ec2.amazonaws.com }
+          Action:
+            - sts:AssumeRole
+  MISPInstanceProfile:
+    DependsOn: MISPInstanceProfileRole
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: SyntheticSun-MISP-Role
+      Roles: 
+        - !Ref MISPInstanceProfileRole
   SyntheticSunArtifacts:
     Type: AWS::S3::Bucket
     Properties:
@@ -297,11 +357,12 @@ Resources:
       LogGroupName: Suricata-Not-DNS-Logs 
       RetentionInDays: 7
 Outputs:
-  WafArn:
-    !GetAtt WAFv2WebACL.Arn
-  FirehoseArn:
-    !GetAtt WAFLoggingDeliveryStream.Arn
-  ElasticsearchUrl:
-    !GetAtt SyntheticSunES.DomainEndpoint
-  MispInstanceId:
-    !Ref MISPInstance
+  WafArnOutput:
+    Description: WAF Web ACL ARN
+    Value: !GetAtt WAFv2WebACL.Arn
+  FirehoseArnOutput:
+    Description: Firehouse Delivery Stream ARN
+    Value: !GetAtt WAFLoggingDeliveryStream.Arn
+  ElasticsearchUrlOuput:
+    Description: Elasticsearch Service domain endpoint URL
+    Value: !GetAtt SyntheticSunES.DomainEndpoint

@@ -14,19 +14,21 @@
 # If not, see https://github.com/jonrau1/SyntheticSun/blob/master/LICENSE.
 import boto3
 import sys
-import os
+# set your profile
+profileName = sys.argv[1]
+session = boto3.Session(profile_name=profileName)
 # create boto3 clients
 sts = boto3.client('sts')
-s3 = boto3.client('s3')
-apigwv2 = boto3.client('apigatewayv2')
+s3 = session.client('s3')
+apigwv2 = session.client('apigatewayv2')
 # create variables
 awsAccountId = sts.get_caller_identity()['Account']
 # input vars
-awsRegion = sys.argv[1]
-ctBucket = sys.argv[2]
-albBucket = sys.argv[3]
-wafBucket = sys.argv[4]
-apiId = sys.argv[5]
+awsRegion = sys.argv[2]
+ctBucket = sys.argv[3]
+albBucket = sys.argv[4]
+wafBucket = sys.argv[5]
+apiId = sys.argv[6]
 # dynamic vars
 ctFunctionArn = 'arn:aws:lambda:' + awsRegion + ':' + awsAccountId + ':function:SyntheticSun-CTLogParserLambda'
 albFunctionArn = 'arn:aws:lambda:' + awsRegion + ':' + awsAccountId + ':function:SyntheticSun-ALBLogParserLambda'
