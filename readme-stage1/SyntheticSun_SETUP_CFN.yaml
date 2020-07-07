@@ -61,7 +61,8 @@ Parameters:
     Default: r5.large.elasticsearch
     Description: Instance type for Elasticsearch data nodes
     AllowedValues:
-      - t3.xlarge.elasticsearch
+      - t2.small.elasticsearch
+      - t2.medium.elasticsearch
       - m4.xlarge.elasticsearch
       - m5.large.elasticsearch
       - r4.large.elasticsearch
@@ -74,7 +75,8 @@ Parameters:
     Default: m5.large.elasticsearch
     Description: Instance type for Elasticsearch master nodes
     AllowedValues: 
-      - t3.xlarge.elasticsearch
+      - t2.small.elasticsearch
+      - t2.medium.elasticsearch
       - m4.xlarge.elasticsearch
       - m5.large.elasticsearch
       - r4.large.elasticsearch
