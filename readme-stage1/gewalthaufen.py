@@ -244,8 +244,7 @@ def es_waf_index_creation():
     r = requests.put(url, auth=awsauth, json=pload, headers=headers)
     print(r.json())
 
-def im_helping():
-    endpoint_attachment()
+def main():
     waf_logging()
     cwa_ssm_parameter()
     es_apigw_index_creation()
@@ -253,4 +252,4 @@ def im_helping():
     es_vpc_index_creation()
     es_waf_index_creation()
 
-im_helping()
+main()
