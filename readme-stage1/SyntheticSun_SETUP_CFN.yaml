@@ -56,6 +56,13 @@ Parameters:
       - m5.xlarge
       - r5.large
       - r5.xlarge
+  ESVersion:
+    Type: String
+    Default: 7.4
+    Description: The Elasticsearch version number to use for your Domain
+    AllowedValues:
+      - 7.4
+      - 7.7
   ESDataNodeInstanceType: 
     Type: String
     Default: r5.large.elasticsearch
@@ -332,6 +339,8 @@ Resources:
   SyntheticSunES:
     Type: AWS::Elasticsearch::Domain
     Properties:
+      UpdatePolicy:
+        EnableVersionUpgrade: true
       DomainName: syntheticsun-es
       ElasticsearchClusterConfig:
         DedicatedMasterEnabled: true
@@ -339,7 +348,7 @@ Resources:
         InstanceType: !Ref ESDataNodeInstanceType
         DedicatedMasterType: !Ref ESMasterNodeInstanceType
         DedicatedMasterCount: 3
-      ElasticsearchVersion: 7.4
+      ElasticsearchVersion: !Ref ESVersion
       EncryptionAtRestOptions:
         Enabled: true
       EBSOptions:
