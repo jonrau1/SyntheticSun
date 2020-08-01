@@ -1,5 +1,5 @@
 # SyntheticSun
-SyntheticSun is a defense-in-depth security automation and monitoring framework which utilizes threat intelligence, machine learning, managed AWS security services and, serverless technologies to continuously prevent, detect and respond to new and emerging threats.
+SyntheticSun is a defense-in-depth security automation and monitoring framework which utilizes threat intelligence, machine learning, managed AWS security services and, serverless technologies to continuously prevent, detect and respond to threats.
 
 *You sleep in fragmented glass*</br>
 *With reflections of you,*</br>
