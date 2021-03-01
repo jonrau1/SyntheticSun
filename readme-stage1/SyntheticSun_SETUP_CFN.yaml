@@ -338,9 +338,9 @@ Resources:
               SSEAlgorithm: AES256
   SyntheticSunES:
     Type: AWS::Elasticsearch::Domain
+    UpdatePolicy:
+      EnableVersionUpgrade: true
     Properties:
-      UpdatePolicy:
-        EnableVersionUpgrade: true
       DomainName: syntheticsun-es
       ElasticsearchClusterConfig:
         DedicatedMasterEnabled: true
