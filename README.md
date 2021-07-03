@@ -46,10 +46,10 @@ SyntheticSun, by virtue of being something you found on GitHub, is a proof-of-co
 ## FAQ
 
 #### 1. Why should I use this solution?
-SyntheticSun is an easy way to start using cyber threat intelligence and machine learning for your edge protection security use cases on the AWS Cloud without having to invest in one or more commercial tools or a data scientist for your security team (though you should ideally do the latter). This solution, after initial configuration, is fully automated, allowing you to identify and respond to threats at machine speed. Finally, this solution provides basic visualizations for your incident response team to use for threat response, such as allowed inbound or outbound connections or DNS queries to and from IP addresses or domains deemed to be malicious. The core of the solution relies on very lightweight automation and data engineering pipelines, which theoretically, can be reused for other purposes where multi-stage normalization and enrichment or scheduled, fast-paced batch jobs are needed.
+SyntheticSun is an easy way to start using cyber threat intelligence and machine learning for your edge protection security use cases on the AWS Cloud without having to invest in one or more commercial tools, or hiring a data scientist for your security team (though you should ideally do the latter). This solution, after initial configuration, is fully automated, allowing you to identify and respond to threats at machine speed. Finally, this solution provides basic visualizations for your incident response team to use for threat response, such as allowed inbound or outbound connections or DNS queries to and from IP addresses or domains deemed to be malicious. The core of the solution relies on very lightweight automation and data engineering pipelines, which theoretically, can be reused for other purposes where multi-stage normalization and enrichment or scheduled, fast-paced batch jobs are needed.
 
 #### 2. Who should use this solution?
-Firstly, if you are making use of Amazon GuardDuty and/or AWS WAF it may make sense to evaluate this solution, but it is also a requirement. Obvious personas who can take advantage are product teams responsible for securing their full stack and lack the capital or expertise to model, train and deploy machine learning algorithms or operationalize cyber threat intelligence feeds meaningfully. Those aforementioned personas are likely security engineering, SecOps / SOC analysts & engineers, or a DevSecOps engineer; however, this list is not exhaustive, and they do not need to be product / application-aligned as central teams can use this as well. Another usage is those same personas (SecOps, security engineering) that work for a centralized team and want to create a dynamic block list for firewalls and intrusion prevention systems, the CodeBuild projects can be repurposed to drop CSV or flat files to almost any location (e.g. Palo Alto firewalls, Squid forward proxy URL filters, etc.).
+Firstly, if you are making use of Amazon GuardDuty and/or AWS WAF, it may make sense to evaluate this solution, but it is also a requirement. Obvious personas who can take advantage are product teams responsible for securing their full stack and lack the capital or expertise to model, train and deploy machine learning algorithms or operationalize cyber threat intelligence feeds meaningfully. Those aforementioned personas are likely security engineering, SecOps / SOC analysts & engineers, or a DevSecOps engineer; however, this list is not exhaustive, and they do not need to be product / application-aligned as central teams can use this as well. Another usage is those same personas (SecOps, security engineering) that work for a centralized team and want to create a dynamic block list for firewalls and intrusion prevention systems, the CodeBuild projects can be repurposed to drop CSV or flat files to almost any location (e.g. Palo Alto firewalls, Squid forward proxy URL filters, etc.).
 
 #### 3. What are the gaps in this solution?
 SyntheticSun currently lacks full coverage across all main log sources - namely, S3 Access Logs and CloudFront Access Logs, which are integral to the way a lot of folks deliver services (especially for SPAs on S3 buckets). The anomaly detection does not extend past WAF, API Gateway Access Logs, or CloudTrail due to my obsession with IP Insights and complete lack of any data science training (seriously, I don't even know how to use `pandas` or `numpy`). There is not any in-depth analysis of raw threat intelligence IoCs other than attempting to match it in the logs.
@@ -75,21 +75,21 @@ In the solution I provide some example feeds that you should use, some are prett
 
 You can also bring your own commercial threat intel platforms and feeds such as InfoBlox or Recorded Future into this solution by pointing them at the DynamoDB tables with similar syntax.
 
-#### 7. I did a look up against the raw log sources in S3 and I am not seeing the entries in Elasticsearch, why is this?
+#### 7. I did a look up against the raw log sources in S3 and I am not seeing the entries in Elasticsearch; why is this?
 Most log delivery from AWS is "best effort," so there is not an official SLA published; however, I would assume it is around 99.5 - 99.9%, where anything in that last 0.5 - 0.1% will not be delivered. "Production" traffic is also first class in AWS; if there are network bandwidth constraints it will default to delivering connectivity back to clients versus sending out logs. The more likely event is that the raw log file was too large for Lambda to process the entire thing in time; you see this a lot when you are being hosed by a DOS or crawler from the same client IP. WAF and ALB bundle log files by the caller (from what I can tell), so if you absorb hundreds of requests, the log file can be very large.
 
-#### 8. I have an existing Elasticsearch Service domain in a VPC, will this solution work?
-You will either need to:
+#### 8. I have an existing Elasticsearch Service domain in a VPC; will this solution work?
+Yes, however you will need to perform one of the following:
 
-  - Place the Lambda functions into a VPC and attach VPC Endpoints for S3, DynamoDB, and CloudWatch Logs. Or:
-  - Modify the solution to publish the final formatted logs into Kinesis Data Firehose and point them to you ES Domain in a VPC. 
+  - Place the Lambda functions into a VPC and attach VPC Endpoints for S3, DynamoDB, and CloudWatch Logs.
+  - Alternatively, modify the solution to publish the final formatted logs into Kinesis Data Firehose and point them to you ES Domain in a VPC. 
 
-There are additional costs for this and Lambda in a VPC, especially for dozens of concurrent invocations, will likely lead to more problems from ENIs sticking around and eating your RFC1918 space. Unless you absolutely have to isolate all traffic within your VPC to meet compliance requirements, I would not go down that road.
+There are additional costs for this. Lambda in a VPC, especially for dozens of concurrent invocations, will likely lead to more problems from ENIs sticking around and eating your RFC1918 space. Unless you absolutely have to isolate all traffic within your VPC to meet compliance requirements, I would not go down that road.
 
 #### 9. Can I publish these log sources to Splunk instead?
 Yes, this is achievable by modifying the solution to publish the final formatted logs into Kinesis Data Firehose and point them to Splunk.
 
-#### 10. Will you support any other logging sources 
+#### 10. Will you support any other logging sources? 
 I hope to have support for Route 53 DNS Logs, S3 Access Logs, CloudFront Access Logs ~~and API Gateway Access Logs~~ and maybe some other host-based logs in the future.
 
 #### 11. Why did you use the CloudWatch Agent instead of the Kinesis Data Agent?
